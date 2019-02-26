@@ -181,3 +181,6 @@ def load_script(script: str, attrs: dict):
 
     return display(Javascript(script))
 
+
+require = RequireJS()
+require.__doc__ = RequireJS.config.__doc__

@@ -31,6 +31,13 @@ from IPython.core.magic import magics_class
 from IPython.core.magic import Magics
 from IPython.core.magic import needs_local_scope
 
+from .core import link_css
+from .core import link_js
+from .core import load_script
+from .core import load_style
+from .core import require
+
+
 @magics_class
 class RequireJSMagic(Magics):
     """Ipython magic for RequireJS class.

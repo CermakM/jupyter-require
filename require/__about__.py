@@ -1,11 +1,9 @@
 """About this package."""
 
 __all__ = [
-    "__name__", "__title__", "__summary__", "__uri__", "__version__", "__author__",
+    "__title__", "__summary__", "__uri__", "__version__", "__author__",
     "__email__", "__license__", "__copyright__",
 ]
-
-__name__ = "require"
 
 __title__ = "jupyter-require"
 __summary__ = "Jupyter magic for managing linked JavaScript Libraries.",

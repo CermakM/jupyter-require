@@ -24,21 +24,18 @@
 """Jupyter library and magic extension for managing linked JavaScript and CSS scripts and styles."""
 
 
-from require.__about__ import __name__
-from require.__about__ import __version__
+from .__about__ import __version__
 
-from .magic import RequireJSMagic
-
-from .core import RequireJS
-from .core import link_css, link_js
-from .core import load_style, load_script
-
-
-require = RequireJS()
-require.__doc__ = RequireJS.config.__doc__
+from .core import link_css
+from .core import link_js
+from .core import load_script
+from .core import load_style
+from .core import require
 
 
 def load_ipython_extension(ipython):
     """Load the IPython extension."""
+    from .magic import RequireJSMagic
+    
     # magic: %require
     ipython.register_magics(RequireJSMagic)
