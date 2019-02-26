@@ -73,7 +73,7 @@ class RequireJS(HasTraits):
         :param library: str, key to the library
         :param path: str, path (url) to the library without .js suffix
         """
-        self._LIBS['library'] = path
+        self._LIBS[library] = path
 
     def config(self, libs: dict):
         """Links JavaScript libraries to Jupyter Notebook.

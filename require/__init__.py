@@ -36,6 +36,6 @@ from .core import require
 def load_ipython_extension(ipython):
     """Load the IPython extension."""
     from .magic import RequireJSMagic
-    
+
     # magic: %require
     ipython.register_magics(RequireJSMagic)
