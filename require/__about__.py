@@ -5,7 +5,7 @@ __all__ = [
     "__email__", "__license__", "__copyright__",
 ]
 
-__name__ = "jupyter-require"
+__name__ = "require"
 
 __title__ = "jupyter-require"
 __summary__ = "Jupyter magic for managing linked JavaScript Libraries.",

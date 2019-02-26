@@ -29,9 +29,9 @@ from require.__about__ import __version__
 
 from .magic import RequireJSMagic
 
-from .require import RequireJS
-from .require import link_css, link_js
-from .require import load_style, load_script
+from .core import RequireJS
+from .core import link_css, link_js
+from .core import load_style, load_script
 
 
 require = RequireJS()
