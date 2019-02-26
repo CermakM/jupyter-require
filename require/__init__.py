@@ -24,8 +24,8 @@
 """Jupyter magic for managing linked JavaScript Libraries."""
 
 
-__name__ = "jupyter-require"
-__version__ = "0.1.0"
+from require.__about__ import __name__
+from require.__about__ import __version__
 
 
 import re
