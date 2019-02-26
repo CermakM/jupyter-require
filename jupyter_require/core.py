@@ -23,20 +23,29 @@
 
 """Module for managing linked JavaScript scripts and CSS styles."""
 
-from string import Template
+import json
+import string
+
 from textwrap import dedent
 from traitlets import Dict, HasTraits, observe, Unicode
 
 from IPython.core.display import display, Javascript
 
 
-_REQUIREJS_TEMPLATE = Template(dedent("""
+_REQUIREJS_TEMPLATE = string.Template(dedent("""
     'use strict';
-    
+
     require.config({
-        paths: {
-            $libs
-        }
+        paths: $libs
+    });
+
+    // link them straight away
+    Object.keys($libs).forEach( (lib) => {
+
+        require([lib], function () {
+            console.log(`${lib} has been linked.`);
+        });
+
     });
 """))
 
@@ -46,18 +55,6 @@ class RequireJS(HasTraits):
     _LIBS = Dict(Unicode(allow_none=False), default_value=dict(), help="""
         Linked JavaScript libraries.
     """)
-
-    @observe('_LIBS')
-    def update(self, *args):
-        """Update requireJS config in Jupyter Notebook."""
-        # required libraries
-        libs = (
-            f"'{key}': '{path}'" for key, path in self._LIBS.items()
-        )
-        require_js: str = _REQUIREJS_TEMPLATE.safe_substitute(
-            libs=', '.join(libs))
-
-        return display(Javascript(dedent(require_js)))
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -75,6 +72,33 @@ class RequireJS(HasTraits):
         """
         self._LIBS[library] = path
 
+    @property
+    def libs(self) -> dict:
+        """Get custom loaded libraries."""
+        return dict(self._LIBS)
+
+    def display_context(self):
+        """Print defined libraries."""
+        _ = self  # ignore
+
+        return display(Javascript("""
+            const context = require.s.contexts._.defined;
+
+            $(element).html(
+                JSON.stringify(Object.keys(context).sort())
+                .replace(/,/g, '<br>'));
+        """))
+
+    @observe('_LIBS')
+    def update(self, *args):
+        """Update requireJS config in Jupyter Notebook."""
+        # required libraries
+        libs = json.dumps(self._LIBS)
+
+        require_js: str = _REQUIREJS_TEMPLATE.safe_substitute(libs=libs)
+
+        return display(Javascript(dedent(require_js)))
+
     def config(self, libs: dict):
         """Links JavaScript libraries to Jupyter Notebook.
 
@@ -87,11 +111,6 @@ class RequireJS(HasTraits):
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
         self._LIBS = libs
-
-    @property
-    def context(self) -> dict:
-        """Get loaded libraries."""
-        return dict(self._LIBS)
 
 
 def link_css(stylesheet: str):
@@ -160,7 +179,7 @@ def load_script(script: str, attrs: dict):
     """Create new script element and add it to the page."""
     script = (
         "'use strict';"
-        
+
         f"const script = `{script}`;"
         f"const attributes = {attrs};"
         """
