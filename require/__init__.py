@@ -1,4 +1,4 @@
-# jupyter-d3
+# jupyter-require
 # Copyright 2019 Marek Cermak <macermak@redhat.com>
 #
 # MIT License
@@ -24,7 +24,7 @@
 """Jupyter magic for managing linked JavaScript Libraries."""
 
 
-__name__ = "require"
+__name__ = "jupyter-require"
 __version__ = "0.1.0"
 
 

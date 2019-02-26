@@ -1,4 +1,4 @@
-# jupyter-d3
+# jupyter-require
 # Copyright 2019 Marek Cermak <macermak@redhat.com>
 #
 # MIT License
