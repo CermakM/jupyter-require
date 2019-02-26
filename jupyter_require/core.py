@@ -57,6 +57,8 @@ class RequireJS(HasTraits):
         require_js: str = _REQUIREJS_TEMPLATE.safe_substitute(
             libs=', '.join(libs))
 
+        print("Updating libs: ", *args)
+
         return display(Javascript(dedent(require_js)))
 
     def __call__(self, library: str, path: str, *args, **kwargs):
@@ -89,7 +91,7 @@ class RequireJS(HasTraits):
         self._LIBS = libs
 
     @property
-    def loaded_libraries(self) -> dict:
+    def context(self) -> dict:
         """Get loaded libraries."""
         return dict(self._LIBS)
 

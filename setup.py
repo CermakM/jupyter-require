@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 HERE = Path(__file__).parent
 
 ABOUT = dict()
-exec(Path(HERE, 'require', '__about__.py').read_text(), ABOUT)
+exec(Path(HERE, 'jupyter_require', '__about__.py').read_text(), ABOUT)
 
 README: str = Path(HERE, "README.md").read_text()
 REQUIREMENTS: list = Path(HERE, 'requirements.txt').read_text().splitlines()
