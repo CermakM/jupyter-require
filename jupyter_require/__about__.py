@@ -9,7 +9,7 @@ __title__ = "jupyter-require"
 __summary__ = "Jupyter magic for managing linked JavaScript Libraries.",
 __uri__ = "https://github.com/CermakM/jupyter-require"
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __author__ = "Marek Cermak"
 __email__ = "macermak@redhat.com"
