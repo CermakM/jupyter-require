@@ -52,7 +52,7 @@ Loading required libraries is now as simple as:
 %require d3-hierarchy https://d3js.org/d3-hierarchy.v1.min
 ```
 
-> Note that the path does __NOT__ contain the `.js` file extension. This is requireJS standard.
+> Note that the path does __NOT__ contain the `.js` file extension. This is [requireJS] standard.
 
 
 The `%require` is _jupyter magic command_ and the rest are the parameters. The command takes lib name and path.
@@ -93,6 +93,7 @@ The `%require` is _jupyter magic command_ and the rest are the parameters. The c
 [d3]: https://d3js.org
 [JavaScript]: https://www.w3schools.com/js/default.asp
 [Jupyter]: https://jupyter.org/
+[RequireJS]: https://requirejs.org/
 
 
 > Author: Marek Cermak <macermak@redhat.com> 
