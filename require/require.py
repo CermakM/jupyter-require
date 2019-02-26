@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Module for managing linked JavaScript Libraries via requireJS."""
+"""Module for managing linked JavaScript scripts and CSS styles."""
 
 from string import Template
 from textwrap import dedent
