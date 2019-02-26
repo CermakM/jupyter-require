@@ -4,9 +4,9 @@ Jupyter magic library for managing linked JavaScript scripts and CSS styles.
 
 # About
 
-The [`require`](https://github.com/CermakM/jupyter-require) library is intended to be used in [Jupyter] notebooks.
+The [`jupyter-require`](https://github.com/CermakM/jupyter-require) library is intended to be used in [Jupyter] notebooks.
 
-`require` allows you to link custom [CSS] and [JavaScript] files
+`jupyter-require` allows you to link custom [CSS] and [JavaScript] files
 and even create and load your own styles and scripts directly from [Jupyter] notebook.
 
 <br>
@@ -20,7 +20,7 @@ However, it is not very comfortable to use in Jupyter notebooks let alone integr
 (see the article about [Custom D3.js Visualization in a Jupyter Notebook](https://www.stefaanlippens.net/jupyter-custom-d3-visualization.html)).
 
 That's where `jupyter-require` and related [`jupyter-d3`](https://github.com/CermakM/jupyter-d3) come into play.
-`require` allows you to source custom scripts (like [d3]) and styles and use them within the notebook with ease.
+`jupyter-require` allows you to source custom scripts (like [d3]) and styles and use them within the notebook with ease.
 
 
 Check out also [`jupyter-d3`](https://github.com/CermakM/jupyter-d3) which takes the [d3] workflow
@@ -40,7 +40,7 @@ Check out also [`jupyter-d3`](https://github.com/CermakM/jupyter-d3) which takes
 In [Jupyter] notebooks:
 
 ```python
-%load_ext require
+%load_ext jupyter_require
 ```
 
 ### Loading libraries
