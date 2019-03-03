@@ -61,7 +61,7 @@ The `%require` is _jupyter magic command_ and the rest are the parameters. The c
 ### Creating custom style elements
 
 ```css
-%%load_style
+%%load_css
 
 /* d3.css */
 

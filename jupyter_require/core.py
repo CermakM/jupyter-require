@@ -26,10 +26,6 @@
 import json
 import string
 
-from spectate.mvc import Dict
-# noinspection PyProtectedMember
-from spectate.mvc.base import memory_safe_function
-
 from textwrap import dedent
 from typing import List
 
@@ -38,7 +34,7 @@ from IPython.core.display import display, Javascript
 
 class RequireJS(object):
 
-    __LIBS = Dict()
+    __LIBS = dict()
     """Required libraries encapsulated in observer pattern."""
 
     _REQUIREJS_TEMPLATE = string.Template(dedent("""
@@ -62,12 +58,9 @@ class RequireJS(object):
 
     def __init__(self, required: dict = None):
         """Initialize RequireJS."""
-        on_update = memory_safe_function(self.update)
-        # noinspection PyProtectedMember
-        self.__LIBS._model_views.append(on_update)  # pylint: disable=protected-access
-
         # update with default required libraries
         self.__LIBS.update(required or {})
+        self.update()
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -84,6 +77,7 @@ class RequireJS(object):
         :param path: str, path (url) to the library without .js suffix
         """
         self.__LIBS[library] = path
+        self.update()
 
     @property
     def libs(self) -> dict:
@@ -114,6 +108,7 @@ class RequireJS(object):
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
         self.__LIBS.update(libs)
+        self.update()
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -121,6 +116,7 @@ class RequireJS(object):
         :param lib: key as passed to `config()`
         """
         self.__LIBS.pop(lib)
+        self.update()
 
     def update(self, *args):
         """Update requireJS config in Jupyter Notebook."""
@@ -238,11 +234,15 @@ def link_css(stylesheet: str):
         
         f"const href = \"{stylesheet}\";"
         """
-        var link = document.createElement("link");
+        let link = document.createElement("link");
         link.rel = "stylesheet";
         link.type = "text/css";
-        link.href = href;
-
+        try {
+            link.href = requirejs.toUrl(href, 'css');
+        } catch (error) {
+            link.href = href;
+        }
+        
         document.head.appendChild(link);
         """
     )
@@ -257,7 +257,7 @@ def link_js(lib: str):
         
         f"const src = \"{lib}\";"
         """
-        var script = document.createElement("script");
+        let script = document.createElement("script");
         script.src = src;
 
         document.head.appendChild(script);
@@ -267,7 +267,7 @@ def link_js(lib: str):
     return display(Javascript(script))
 
 
-def load_style(style: str, attrs: dict = None):
+def load_css(style: str, attrs: dict = None):
     """Create new style element and add it to the page."""
     attrs = attrs or {}
 
@@ -280,7 +280,7 @@ def load_style(style: str, attrs: dict = None):
         let id = attributes.id;
         let elem_exists = id ? $(`style#${id}`).length > 0 : false;
         
-        var e = elem_exists ? document.querySelector(`style#${id}`)
+        let e = elem_exists ? document.querySelector(`style#${id}`)
                             : document.createElement(\"style\");
         
         $(e).text(`${style}`).attr('type', 'text/css');
@@ -295,7 +295,7 @@ def load_style(style: str, attrs: dict = None):
     return display(Javascript(script))
 
 
-def load_script(script: str, attrs: dict = None):
+def load_js(script: str, attrs: dict = None):
     """Create new script element and add it to the page."""
     attrs = attrs or {}
 
@@ -308,7 +308,7 @@ def load_script(script: str, attrs: dict = None):
         let id = attributes.id;
         let elem_exists = id ? $(`script#${id}`).length > 0 : false;
         
-        var e = elem_exists ? document.querySelector(`script#${id}`)
+        let e = elem_exists ? document.querySelector(`script#${id}`)
                             : document.createElement(\"script\");
         
         $(e).text(`${script}`).attr('type', 'text/css');

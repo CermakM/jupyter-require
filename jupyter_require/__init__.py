@@ -28,8 +28,8 @@ from .__about__ import __version__
 
 from .core import link_css
 from .core import link_js
-from .core import load_script
-from .core import load_style
+from .core import load_js
+from .core import load_css
 from .core import require
 
 

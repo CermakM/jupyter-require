@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 ipython = "*"
-spectate = "*"
 
 [dev-packages]
 

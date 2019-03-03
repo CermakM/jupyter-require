@@ -33,8 +33,8 @@ from IPython.core.magic import needs_local_scope
 
 from .core import link_css
 from .core import link_js
-from .core import load_script
-from .core import load_style
+from .core import load_js
+from .core import load_css
 from .core import require
 
 
@@ -77,14 +77,14 @@ class RequireJSMagic(Magics):
         """Create new style element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
-        return load_style(cell, attributes)
+        return load_css(cell, attributes)
 
     @cell_magic
     def load_script(self, line: str, cell: str):
         """Create new script element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
-        return load_script(cell, attributes)
+        return load_js(cell, attributes)
 
     @staticmethod
     def _parse_attributes(line: str) -> dict:
