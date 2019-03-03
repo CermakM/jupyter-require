@@ -26,35 +26,48 @@
 import json
 import string
 
+from spectate.mvc import Dict
+# noinspection PyProtectedMember
+from spectate.mvc.base import memory_safe_function
+
 from textwrap import dedent
-from traitlets import Dict, HasTraits, observe, Unicode
+from typing import List
 
 from IPython.core.display import display, Javascript
 
 
-_REQUIREJS_TEMPLATE = string.Template(dedent("""
-    'use strict';
+class RequireJS(object):
 
-    require.config({
-        paths: $libs
-    });
+    __LIBS = Dict()
+    """Required libraries encapsulated in observer pattern."""
 
-    // link them straight away
-    Object.keys($libs).forEach( (lib) => {
+    _REQUIREJS_TEMPLATE = string.Template(dedent("""
+        'use strict';
 
-        require([lib], function () {
-            console.log(`${lib} has been linked.`);
+        require.config({
+            paths: $libs
         });
 
-    });
-"""))
+        console.log("Loading required libraries:", $libs);
+        
+        // link them straight away
+        Object.keys($libs).forEach( (lib) => {
 
+            require([lib], function () {
+                console.log(`${lib} has been linked.`);
+            });
 
-class RequireJS(HasTraits):
+        });
+    """))
 
-    _LIBS = Dict(Unicode(allow_none=False), default_value=dict(), help="""
-        Linked JavaScript libraries.
-    """)
+    def __init__(self, required: dict = None):
+        """Initialize RequireJS."""
+        on_update = memory_safe_function(self.update)
+        # noinspection PyProtectedMember
+        self.__LIBS._model_views.append(on_update)  # pylint: disable=protected-access
+
+        # update with default required libraries
+        self.__LIBS.update(required or {})
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -70,12 +83,12 @@ class RequireJS(HasTraits):
         :param library: str, key to the library
         :param path: str, path (url) to the library without .js suffix
         """
-        self._LIBS[library] = path
+        self.__LIBS[library] = path
 
     @property
     def libs(self) -> dict:
         """Get custom loaded libraries."""
-        return dict(self._LIBS)
+        return dict(self.__LIBS)
 
     def display_context(self):
         """Print defined libraries."""
@@ -89,16 +102,6 @@ class RequireJS(HasTraits):
                 .replace(/,/g, '<br>'));
         """))
 
-    @observe('_LIBS')
-    def update(self, *args):
-        """Update requireJS config in Jupyter Notebook."""
-        # required libraries
-        libs = json.dumps(self._LIBS)
-
-        require_js: str = _REQUIREJS_TEMPLATE.safe_substitute(libs=libs)
-
-        return display(Javascript(dedent(require_js)))
-
     def config(self, libs: dict):
         """Links JavaScript libraries to Jupyter Notebook.
 
@@ -110,7 +113,122 @@ class RequireJS(HasTraits):
 
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
-        self._LIBS = libs
+        self.__LIBS.update(libs)
+
+    def pop(self, lib: str):
+        """Remove JavaScript library from requirements.
+
+        :param lib: key as passed to `config()`
+        """
+        self.__LIBS.pop(lib)
+
+    def update(self, *args):
+        """Update requireJS config in Jupyter Notebook."""
+        # required libraries
+        libs = json.dumps(self.__LIBS)
+
+        require_js: str = self._REQUIREJS_TEMPLATE.safe_substitute(libs=libs)
+
+        return display(Javascript(dedent(require_js)))
+
+
+class JSTemplate(string.Template):
+    """Custom d3 string template."""
+
+    delimiter = "$$"
+
+    def __init__(self, script: str, required: List[str] = None, **_kwargs):
+        """Wrap the script in `require` function and instantiate template."""
+        libraries = required or json.dumps(require.libs.keys())
+
+        wrapped_script = """
+            'use strict';
+            
+            try {{
+                    
+                console.log("Checking required libraries: ", {libs});
+                
+                [{libs}].forEach( lib => {{
+                
+                    let is_defined = require.defined(lib);
+                    console.log(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
+                    
+                    if (!is_defined) {{
+                        // throw
+                        throw new Error(`RequireError: Requirement could not be satisfied: '${{lib}}'.`);
+                    }}
+                    
+                }});
+            
+                require([{libs}], function ({args}) {{
+                
+                    // execute the script
+                    {script}
+                        
+                }});
+                
+            }} catch(err) {{
+            
+                // append stack trace to the cell output element
+                let div = document.createElement('div');
+                
+                div = $('<div/>')
+                    .addClass('js-error')
+                    .html(err.stack.replace(/\sat/g, '<br>\tat') + '<hr>');
+                
+                $(element).append(div);
+                
+                // re-throw
+                throw err;
+                    
+            }}
+            
+        """.format(libs=libraries,
+                   args=libraries.replace("'", '').replace('-', '_'),
+                   script=script)
+
+        super().__init__(dedent(wrapped_script))
+
+
+def execute_with_requirements(script: str, required: dict, **kwargs):
+    """Link required libraries and execute JS script.
+
+    :param script: JS script to be executed
+    :param required: dict for requireJS config
+    :param kwargs: optional keyword arguments passed to config and parser
+    """
+    require.config(required, **kwargs)
+
+    parsed_script = _parse_script(script, required=required.keys(), **kwargs)
+
+    return display(Javascript(parsed_script))
+
+
+def execute_js(script: str, **kwargs):
+    """Execute JS script.
+
+    This functions implicitly loads libraries defined in requireJS config.
+    """
+    parsed_script = _parse_script(script, **kwargs)
+
+    return display(Javascript(parsed_script))
+
+
+def _parse_script(script: str, **kwargs) -> str:
+    """Parse the JS script and returns string template."""
+    d3_template = JSTemplate(script, **kwargs)
+
+    return _substitute(d3_template, **kwargs)
+
+
+def _substitute(template: "JSTemplate", safe_substitute=True, **kwargs) -> str:
+    """Substitute Python template variables."""
+    if safe_substitute:
+        script = template.safe_substitute(**kwargs)
+    else:
+        script = template.substitute(**kwargs)
+
+    return script
 
 
 def link_css(stylesheet: str):
@@ -149,8 +267,10 @@ def link_js(lib: str):
     return display(Javascript(script))
 
 
-def load_style(style: str, attrs: dict):
+def load_style(style: str, attrs: dict = None):
     """Create new style element and add it to the page."""
+    attrs = attrs or {}
+
     script = (
         "'use strict';"
         
@@ -175,8 +295,10 @@ def load_style(style: str, attrs: dict):
     return display(Javascript(script))
 
 
-def load_script(script: str, attrs: dict):
+def load_script(script: str, attrs: dict = None):
     """Create new script element and add it to the page."""
+    attrs = attrs or {}
+
     script = (
         "'use strict';"
 
