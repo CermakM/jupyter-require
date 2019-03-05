@@ -26,6 +26,8 @@
 import json
 import string
 
+from collections import OrderedDict
+
 from textwrap import dedent
 from typing import List
 
@@ -34,33 +36,53 @@ from IPython.core.display import display, Javascript
 
 class RequireJS(object):
 
-    __LIBS = dict()
+    __LIBS = OrderedDict()
     """Required libraries encapsulated in observer pattern."""
 
     _REQUIREJS_TEMPLATE = string.Template(dedent("""
         'use strict';
-
-        require.config({
-            paths: $libs
-        });
-
-        console.log("Loading required libraries:", $libs);
         
-        // link them straight away
-        Object.keys($libs).forEach( (lib) => {
-
-            require([lib], function () {
-                console.log(`${lib} has been linked.`);
+        function load_required_libraries(libs) {
+        
+            if ($.isEmptyObject(libs)) {
+                console.log("No libraries to load.");
+                return;
+            }
+        
+            console.log("Loading required libraries:", libs);
+            
+            require.config({
+                paths: libs,
+                shim: $shim
             });
+        }
+        
+        load_required_libraries($libs);  // TODO: use requireJS and define this
+            
+        function link_required_libraries(libs) {
+            
+            console.log("Linking required libraries:", libs);
+            
+            // link them straight away
+            Object.keys(libs).forEach( (lib) => {
 
-        });
+                require([lib], function (e) {
+                    console.log(`Library \`${lib}\` has been linked.`);
+                });
+
+            });
+        }
+        
+        // TODO: wait for libraries to download and pause python execution
+        setTimeout(() => link_required_libraries($libs), 500);
+        
     """))
 
-    def __init__(self, required: dict = None):
+    def __init__(self, required: dict = None, shim: dict = None):
         """Initialize RequireJS."""
         # update with default required libraries
         self.__LIBS.update(required or {})
-        self.update()
+        self.update(shim=shim)
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -77,7 +99,7 @@ class RequireJS(object):
         :param path: str, path (url) to the library without .js suffix
         """
         self.__LIBS[library] = path
-        self.update()
+        self.update({library: path}, shim=kwargs.pop('shim', {}))
 
     @property
     def libs(self) -> dict:
@@ -96,19 +118,26 @@ class RequireJS(object):
                 .replace(/,/g, '<br>'));
         """))
 
-    def config(self, libs: dict):
+    def config(self, libs: dict, shim: dict = None):
         """Links JavaScript libraries to Jupyter Notebook.
 
         The libraries are linked using requireJS such as:
 
         ```javascript
-        require.config({ paths: {<key>: <path>} });
+        require.config({
+            paths: {
+                <key>: <path>
+            },
+            shim: {
+                <key>: [<dependencies>]
+            }
+        });
         ```
 
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
         self.__LIBS.update(libs)
-        self.update()
+        self.update(libs, shim=shim)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -116,14 +145,15 @@ class RequireJS(object):
         :param lib: key as passed to `config()`
         """
         self.__LIBS.pop(lib)
-        self.update()
 
-    def update(self, *args):
+    def update(self, libs: dict = None, shim: dict = None):
         """Update requireJS config in Jupyter Notebook."""
         # required libraries
-        libs = json.dumps(self.__LIBS)
+        libs = json.dumps(libs or self.__LIBS)
+        shim = json.dumps(shim or {})
 
-        require_js: str = self._REQUIREJS_TEMPLATE.safe_substitute(libs=libs)
+        require_js: str = self._REQUIREJS_TEMPLATE.safe_substitute(
+            libs=libs, shim=shim)
 
         return display(Javascript(dedent(require_js)))
 
@@ -133,55 +163,81 @@ class JSTemplate(string.Template):
 
     delimiter = "$$"
 
-    def __init__(self, script: str, required: List[str] = None, **_kwargs):
+    def __init__(self, script: str, required: List[str] = None, **kwargs):
         """Wrap the script in `require` function and instantiate template."""
-        libraries = required or json.dumps(require.libs.keys())
+        required = required or list(require.libs.keys())
+        libraries = json.dumps(required)
+
+        args = ', '.join(kwargs.pop('args', []) or required) \
+            .replace("'", '') \
+            .replace('-', '_') \
+            .replace('.', '_')
 
         wrapped_script = """
             'use strict';
             
-            try {{
-                    
-                console.log("Checking required libraries: ", {libs});
-                
-                [{libs}].forEach( lib => {{
-                
-                    let is_defined = require.defined(lib);
-                    console.log(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
-                    
-                    if (!is_defined) {{
-                        // throw
-                        throw new Error(`RequireError: Requirement could not be satisfied: '${{lib}}'.`);
-                    }}
-                    
-                }});
-            
-                require([{libs}], function ({args}) {{
-                
-                    // execute the script
-                    {script}
-                        
-                }});
-                
-            }} catch(err) {{
+            const libs = {libs};
+        
+            function handle_error(error) {{ 
             
                 // append stack trace to the cell output element
                 let div = document.createElement('div');
                 
                 div = $('<div/>')
                     .addClass('js-error')
-                    .html(err.stack.replace(/\sat/g, '<br>\tat') + '<hr>');
+                    .html(error.stack.replace(/\sat/g, '<br>\tat') + '<hr>');
                 
                 $(element).append(div);
                 
                 // re-throw
-                throw err;
+                throw error;
+            }}
+            
+            // check required libraries (if applicable)
+            if (libs.length > 0) {{
+            
+                try {{
+                        
+                    console.log("Checking required libraries: ", libs);
                     
+                    libs.forEach( lib => {{
+                    
+                        let is_defined = require.defined(lib);
+                        console.log(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
+                        
+                        if (!is_defined) {{
+                            // throw
+                            throw new Error(`RequireError: Requirement could not be satisfied: '${{lib}}'.`);
+                        }}
+                        
+                    }});
+                    
+                }} catch(err) {{
+                    console.error("Error occurred while loading required libraries.");
+                    
+                    handle_error(err);
+                }}
+            }} 
+            
+            try {{
+                require({libs}, function ({args}) {{
+                
+                    // execute the script
+                    {script}
+                        
+                }});
+            }}
+            
+            catch(err) {{
+                console.error("Error occurred while executing script.");
+                
+                handle_error(err);
             }}
             
         """.format(libs=libraries,
-                   args=libraries.replace("'", '').replace('-', '_'),
-                   script=script)
+                   args=args,
+                   script=script,
+                   **kwargs)
 
         super().__init__(dedent(wrapped_script))
 
