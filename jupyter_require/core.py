@@ -168,7 +168,9 @@ class JSTemplate(string.Template):
         required = required or list(require.libs.keys())
         libraries = json.dumps(required)
 
-        args = ', '.join(kwargs.pop('args', []) or required) \
+        args = kwargs.pop('args', []) or required
+        args = map(lambda s: s.rsplit('/')[-1], args)
+        args = ', '.join(args) \
             .replace("'", '') \
             .replace('-', '_') \
             .replace('.', '_')
@@ -242,16 +244,25 @@ class JSTemplate(string.Template):
         super().__init__(dedent(wrapped_script))
 
 
-def execute_with_requirements(script: str, required: dict, **kwargs):
+def execute_with_requirements(script: str, required: dict, configured=True, **kwargs):
     """Link required libraries and execute JS script.
 
     :param script: JS script to be executed
     :param required: dict for requireJS config
+    :param configured: bool, whether requirements are already configured
+
+        This speeds up the execution, so if the requirements are already configured,
+        do not run configuration again.
+
+        Assume True, as user is expected to run `require.config()`
+        at the initialization time.
+
     :param kwargs: optional keyword arguments passed to config and parser
     """
-    require.config(required, **kwargs)
+    if not configured:
+        require.config(required, **kwargs)
 
-    parsed_script = _parse_script(script, required=required.keys(), **kwargs)
+    parsed_script = _parse_script(script, required=list(required.keys()), **kwargs)
 
     return display(Javascript(parsed_script))
 
