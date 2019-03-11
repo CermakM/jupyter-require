@@ -294,12 +294,13 @@ def _substitute(template: "JSTemplate", safe_substitute=True, **kwargs) -> str:
     return script
 
 
-def link_css(stylesheet: str):
+def link_css(stylesheet: str, attrs: dict = None):
     """Link CSS stylesheet."""
     script = (
         "'use strict';"
         
         f"const href = \"{stylesheet}\";"
+        f"const attributes = {attrs};"
         """
         let link = document.createElement("link");
         link.rel = "stylesheet";
@@ -309,6 +310,9 @@ def link_css(stylesheet: str):
         } catch (error) {
             link.href = href;
         }
+        
+        Object.entries(attributes)
+            .forEach( ([attr, val]) => $(link).attr(attr, val) );
         
         document.head.appendChild(link);
         """
