@@ -27,62 +27,37 @@ import json
 import string
 
 from collections import OrderedDict
+from pathlib import Path
+from time import sleep
 
 from textwrap import dedent
 from typing import List
 
 from IPython.core.display import display, Javascript
+from ipykernel.comm import Comm
+
+_HERE = Path(__file__).parent
 
 
 class RequireJS(object):
 
     __LIBS = OrderedDict()
     """Required libraries encapsulated in observer pattern."""
-
-    _REQUIREJS_TEMPLATE = string.Template(dedent("""
-        'use strict';
-        
-        function load_required_libraries(libs) {
-        
-            if ($.isEmptyObject(libs)) {
-                console.log("No libraries to load.");
-                return;
-            }
-        
-            console.log("Loading required libraries:", libs);
-            
-            require.config({
-                paths: libs,
-                shim: $shim
-            });
-        }
-        
-        load_required_libraries($libs);  // TODO: use requireJS and define this
-            
-        function link_required_libraries(libs) {
-            
-            console.log("Linking required libraries:", libs);
-            
-            // link them straight away
-            Object.keys(libs).forEach( (lib) => {
-
-                require([lib], function (e) {
-                    console.log(`Library \`${lib}\` has been linked.`);
-                });
-
-            });
-        }
-        
-        // TODO: wait for libraries to download and pause python execution
-        setTimeout(() => link_required_libraries($libs), 500);
-        
-    """))
+    __SHIM = OrderedDict()
+    """Shim for required libraries."""
 
     def __init__(self, required: dict = None, shim: dict = None):
         """Initialize RequireJS."""
+        # TODO: define as AMD and link with requireJS
+        load_js(
+            Path(_HERE / 'js/core.js').read_text(), {'id': 'jupyter-require-core-js'}
+        )  # core JS file
+
+        # comms
+        self._update_comm = create_comm(target='update', func='load_required_libraries')
+
         # update with default required libraries
-        self.__LIBS.update(required or {})
-        self.update(shim=shim)
+        self.config(required or {}, shim or {})
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -98,13 +73,17 @@ class RequireJS(object):
         :param library: str, key to the library
         :param path: str, path (url) to the library without .js suffix
         """
-        self.__LIBS[library] = path
-        self.update({library: path}, shim=kwargs.pop('shim', {}))
+        self.config({library: path}, shim=kwargs.pop('shim', {}))
 
     @property
     def libs(self) -> dict:
         """Get custom loaded libraries."""
         return dict(self.__LIBS)
+
+    @property
+    def shim(self) -> dict:
+        """Get shim defined in requireJS config."""
+        return dict(self.__SHIM)
 
     def display_context(self):
         """Print defined libraries."""
@@ -137,7 +116,12 @@ class RequireJS(object):
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
         self.__LIBS.update(libs)
-        self.update(libs, shim=shim)
+        self.__SHIM.update(shim or {})
+
+        # data to be passed to require.config()
+        data = {'paths': self.__LIBS, 'shim': self.__SHIM}
+
+        self._update_comm.send(data=data)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -145,17 +129,7 @@ class RequireJS(object):
         :param lib: key as passed to `config()`
         """
         self.__LIBS.pop(lib)
-
-    def update(self, libs: dict = None, shim: dict = None):
-        """Update requireJS config in Jupyter Notebook."""
-        # required libraries
-        libs = json.dumps(libs or self.__LIBS)
-        shim = json.dumps(shim or {})
-
-        require_js: str = self._REQUIREJS_TEMPLATE.safe_substitute(
-            libs=libs, shim=shim)
-
-        return display(Javascript(dedent(require_js)))
+        self.__SHIM.pop(lib)
 
 
 class JSTemplate(string.Template):
@@ -165,7 +139,7 @@ class JSTemplate(string.Template):
 
     def __init__(self, script: str, required: List[str] = None, **kwargs):
         """Wrap the script in `require` function and instantiate template."""
-        required = required or list(require.libs.keys())
+        required = required
         libraries = json.dumps(required)
 
         args = kwargs.pop('args', []) or required
@@ -200,12 +174,12 @@ class JSTemplate(string.Template):
             
                 try {{
                         
-                    console.log("Checking required libraries: ", libs);
+                    console.debug("Checking required libraries: ", libs);
                     
                     libs.forEach( lib => {{
                     
                         let is_defined = require.defined(lib);
-                        console.log(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
+                        console.debug(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
                         
                         if (!is_defined) {{
                             // throw
@@ -224,8 +198,13 @@ class JSTemplate(string.Template):
             try {{
                 require({libs}, function ({args}) {{
                 
-                    // execute the script
+                    /* user script */
+                    /* ----------- */
+                    
                     {script}
+                    
+                    /* ----------- */
+                    /* user script */
                         
                 }});
             }}
@@ -242,6 +221,38 @@ class JSTemplate(string.Template):
                    **kwargs)
 
         super().__init__(dedent(wrapped_script))
+
+
+def create_comm(target: str,
+                func: str,
+                data: dict = None,
+                callback: callable = None,
+                **kwargs):
+    """Create ipykernel message comm."""
+    script = """
+    Jupyter.notebook.kernel.comm_manager.register_target('$$target',
+         (comm, msg) => {
+            console.debug(comm, msg);
+
+            comm.on_msg(async(msg) => {
+                await $$function(msg.content.data);
+            });
+        }
+    );
+    
+    console.debug(`Comm '$$target' -> '$$function' registered.`);
+    """
+    # register comm on frontend side
+    execute_with_requirements(script, {}, target=target, function=func)
+
+    # wait for target to be registered
+    sleep(0.5)
+
+    # create comm on python site
+    comm = Comm(target_name=target, data=data, **kwargs)
+    comm.on_msg(callback)
+
+    return comm
 
 
 def execute_with_requirements(script: str, required: dict, configured=True, **kwargs):
@@ -272,7 +283,14 @@ def execute_js(script: str, **kwargs):
 
     This functions implicitly loads libraries defined in requireJS config.
     """
-    parsed_script = _parse_script(script, **kwargs)
+    required = []
+    try:
+        required = list(require.libs.keys())
+    except NameError:  # require has not been defined yet, allowed
+        pass
+
+    parsed_script = _parse_script(
+        script, required=required, **kwargs)
 
     return display(Javascript(parsed_script))
 
@@ -370,7 +388,12 @@ def load_js(script: str, attrs: dict = None):
     """Create new script element and add it to the page."""
     attrs = attrs or {}
 
-    script = (
+    # escape dollar signs inside ticks and ticks
+    script = script \
+        .replace('`', '\`') \
+        .replace('${', '\${')
+
+    script_wrapped = (
         "'use strict';"
 
         f"const script = `{script}`;"
@@ -382,7 +405,7 @@ def load_js(script: str, attrs: dict = None):
         let e = elem_exists ? document.querySelector(`script#${id}`)
                             : document.createElement(\"script\");
         
-        $(e).text(`${script}`).attr('type', 'text/css');
+        $(e).text(`${script}`).attr('type', 'text/javascript');
         
         Object.entries(attributes)
             .forEach( ([attr, val]) => $(e).attr(attr, val) );
@@ -391,7 +414,32 @@ def load_js(script: str, attrs: dict = None):
         """
     )
 
-    return display(Javascript(script))
+    return display(Javascript(script_wrapped))
+
+
+def reload(clean=False):
+    """Reload and create new require object."""
+    global require
+
+    if clean:
+        require = RequireJS()
+    else:
+        require = RequireJS(required=require.libs, shim=require.shim)
+
+    require.__doc__ = RequireJS.config.__doc__
+
+
+def wait_for(script: str, timeout: int = None, **kwargs):
+    """Execute given script and wait for it to finish or timeout.
+
+    This function pauses the IPython kernel until the script
+    returns.
+
+    :param script: str, JS script to execute
+    :param timeout: int, timeout in ms, if exceeded, raises TimeOutError
+
+    :raises TimeOutError
+    """
 
 
 require = RequireJS()
