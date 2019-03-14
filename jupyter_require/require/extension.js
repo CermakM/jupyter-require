@@ -24,16 +24,19 @@
 define(function(require) {
     'use strict';
 
+    let Jupyter = require('base/js/namespace');
+    let events  = require('base/js/events');
     let core = require('./core');
 
-    const default_targets  = {
-        'config': core.load_required_libraries,
-    };
+    /**
+     * Register JupyterRequire comm targets
+     *
+     */
+    function register_targets() {
+        // configuration
+        let events = require('./events');
 
-
-    function register_targets(core) {
-        Object.entries(default_targets).forEach(
-            ([t, f]) => core.register_target(t, f));
+        core.register_target('require', core.load_required_libraries, events.trigger.require)
     }
 
 
@@ -41,24 +44,30 @@ define(function(require) {
      * Register JupyterRequire event handlers
      *
      */
-    function register_events(Jupyter, events, outputarea) {
-        events.on('config_required.JupyterRequire', (e, d) => set_cell_requirements(d.cell, d.config));
+    function register_events() {
+        events.on('config.JupyterRequire', (e, d) => set_notebook_metadata(d.config));
+        events.on('require.JupyterRequire', (e, d) => set_cell_requirements(d.cell, d.require));
     }
 
     /**
      * Initialize requirements in existing cells
      *
      */
-    function init_existing_cells(cells) {
-        cells.forEach( async cell => {
-            if (cell.metadata.require) {
-                let config = get_cell_requirements(cell);
+    async function init_existing_cells(cells) {
+        cells.forEach((cell) => {
+            let required = get_cell_requirements(cell);
 
-                if (config) {
-                    core.load_required_libraries(config).then(() => {
+            if (required.length > 0) {
+                console.debug("Checking libraries required by cell: ", cell, required);
+                required.forEach(async lib => {
+                    let is_defined = require.defined(lib);
+                    console.debug(`Checking library: ${lib}`, is_defined ? '✓' : 'x');
+
+                    if (is_defined) {
+                        // now update the output with already loaded libraries
                         update_cell_output(cell);
-                    }).catch(console.error);
-                }
+                    }
+                });
             }
         });
     }
@@ -73,21 +82,33 @@ define(function(require) {
 
 
     /**
+     * Get requirejs config from notebook metadata
+     *
+     */
+    function get_notebook_config(nb) { return nb.metadata.require || Jupyter.notebook.metadata.require; }
+
+    /**
      * Get cell requirement metadata
      *
      * @param cell {codeCell} - notebook cell
      */
-    function get_cell_requirements(cell) { return cell.metadata.require || {}; }
+    function get_cell_requirements(cell) { return cell.metadata.require || []; }
 
 
     /**
      * Set cell requirement metadata
      *
      * @param cell {codeCell} - notebook cell to update metadata
-     * @param config {Object} - requirements config object
+     * @param required {Object} - requirements config object
      */
-    function set_cell_requirements(cell, config) { cell.metadata.require = config; }
+    function set_cell_requirements(cell, required) { cell.metadata.require = required; }
 
+     /**
+     * Set notebook metadata
+     *
+     * @param config {Object} - requirejs configuration object
+     */
+    function set_notebook_metadata(config) { Jupyter.notebook.metadata.require = config; }
 
     /**
      * Update cell output
@@ -95,9 +116,11 @@ define(function(require) {
      * @param cell {codeCell} - notebook cell to update
      */
     function update_cell_output(cell) {
-        let outputs = cell.output_area.outputs;
-        cell.output_area.clear_output();
+        if (cell.cell_type !== 'code') return;
 
+        let outputs = cell.output_area.outputs;
+
+        cell.output_area.clear_output();
         outputs.forEach((d) => cell.output_area.append_output(d));
     }
 
@@ -111,13 +134,21 @@ define(function(require) {
             require([
                 'base/js/namespace',
                 'base/js/events',
-                'notebook/js/outputarea',
                 './core',
-            ], function (Jupyter, events, outputarea, core) {
-                register_targets(core);
-                register_events(Jupyter, events, outputarea);
+            ], function (Jupyter, events, core) {
 
-                init_existing_cells(Jupyter.notebook.get_cells());
+                const config = get_notebook_config(Jupyter.notebook);
+                let cells = Jupyter.notebook.get_cells();
+
+                register_targets();
+                register_events();
+
+                if (config !== undefined) {
+                    core.load_required_libraries(config)
+                        .then(() => init_existing_cells(cells))
+                        .catch(console.error);
+                }
+
                 resolve();
             });
         });

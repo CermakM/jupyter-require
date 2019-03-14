@@ -83,9 +83,7 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
         return Promise.all(defined).then(
             (values) => {
                 console.log('Success: ', values);
-
-                em.trigger.require_loaded(config);
-
+                em.trigger.config(config);
             }).catch(console.error);
     };
 
@@ -93,15 +91,32 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
      * Register comm for messages from Python kernel
      *
      * @param target {string} - target as specified in `Comm`
-     * @param func - function to be called on received message
+     * @param func {function} - function to be called on received message
+     * @param callback {function} - callback function
      */
-    let register_target = function(target, func) {
+    let register_target = function(target, func, callback) {
         comm_manager.register_target(target,
             (comm, msg) => {
                 console.debug(comm, msg);
 
-                comm.on_msg(async (msg) => {
-                    await func(msg.content.data);
+                comm.on_msg((msg) => {
+                    // figure out which cell triggered this
+                    let cell = null;
+                    let selected_cell = Jupyter.notebook.get_selected_cell();
+                    let messages = selected_cell.metadata.messages;
+
+                    if (messages && messages.some((d) => d.content.comm_id === comm.comm_id)) {
+                        cell = selected_cell;
+                    } else {
+                        cell = Jupyter.notebook.get_prev_cell(selected_cell);
+                    }
+
+                    callback = callback || console.debug;
+
+                    func(msg.content.data)
+                        .then(() => callback(cell, msg))
+                        .catch(console.error);
+
                 });
             }
         );

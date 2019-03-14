@@ -15,27 +15,20 @@
 
 define(['base/js/events'], function(events) {
 
-    function require_configured(cell, config) {
+    function _config(config) {
         events.trigger(
-            'require_configured.JupyterRequire', {cell: cell, config: config})
+            'config.JupyterRequire', {config: config})
     }
 
-    function require_loaded(config) {
+    function _require(cell, required) {
         events.trigger(
-            'require_loaded.JupyterRequire', {config: config})
-    }
-
-    function config_required(cell, config) {
-        events.trigger(
-            'config_required.JupyterRequire', {cell: cell, config: config})
+            'require.JupyterRequire', {cell: cell, require: required})
     }
 
     return {
         trigger: {
-            require_configured: require_configured,
-            require_loaded: require_loaded,
-
-            config_required: config_required,
+            config: _config,
+            require: _require
         }
     }
 });

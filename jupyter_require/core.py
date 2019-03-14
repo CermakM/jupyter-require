@@ -60,7 +60,7 @@ class RequireJS(object):
 
         # comms
         self._config_comm = create_comm(
-            target='config', callback=self._store_callback)
+            target='require', callback=self._store_callback)
 
         # update with default required libraries
         self.config(required or {}, shim or {})
@@ -182,7 +182,7 @@ class JSTemplate(string.Template):
             require(['nbextensions/require/events'], (em) => {{
                 let cell = Jupyter.notebook.get_selected_cell();
                 
-                em.trigger.config_required(cell, libs);
+                em.trigger.require(cell, libs);
             }});
         
             function handle_error(error) {{ 
