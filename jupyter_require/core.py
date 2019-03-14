@@ -28,13 +28,19 @@ import string
 
 from collections import OrderedDict
 from pathlib import Path
-from time import sleep
 
 from textwrap import dedent
-from typing import List
+from typing import List, Union
 
+from IPython import get_ipython
 from IPython.core.display import display, Javascript
+
 from ipykernel.comm import Comm
+
+
+Jupyter = get_ipython()
+"""Current InteractiveShell instance."""
+
 
 _HERE = Path(__file__).parent
 
@@ -42,19 +48,19 @@ _HERE = Path(__file__).parent
 class RequireJS(object):
 
     __LIBS = OrderedDict()
-    """Required libraries encapsulated in observer pattern."""
+    """Required libraries."""
     __SHIM = OrderedDict()
     """Shim for required libraries."""
 
     def __init__(self, required: dict = None, shim: dict = None):
         """Initialize RequireJS."""
-        # TODO: define as AMD and link with requireJS
-        load_js(
-            Path(_HERE / 'js/core.js').read_text(), {'id': 'jupyter-require-core-js'}
-        )  # core JS file
+        # comm messages
+        self._msg = None
+        self._msg_received = None
 
         # comms
-        self._update_comm = create_comm(target='update', func='load_required_libraries')
+        self._config_comm = create_comm(
+            target='config', callback=self._store_callback)
 
         # update with default required libraries
         self.config(required or {}, shim or {})
@@ -119,9 +125,9 @@ class RequireJS(object):
         self.__SHIM.update(shim or {})
 
         # data to be passed to require.config()
-        data = {'paths': self.__LIBS, 'shim': self.__SHIM}
+        self._msg = {'paths': self.__LIBS, 'shim': self.__SHIM}
 
-        self._update_comm.send(data=data)
+        self._config_comm.send(data=self._msg)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -130,6 +136,24 @@ class RequireJS(object):
         """
         self.__LIBS.pop(lib)
         self.__SHIM.pop(lib)
+
+    @classmethod
+    def reload(cls, clean=False):
+        """Reload and create new require object."""
+        global require
+
+        if clean:
+            require = cls()
+        else:
+            require = cls(required=require.libs, shim=require.shim)
+
+        require.__doc__ = RequireJS.__call__.__doc__
+
+        return require
+
+    def _store_callback(self, msg):
+        """Store callback from comm."""
+        self._msg_received = msg
 
 
 class JSTemplate(string.Template):
@@ -153,6 +177,13 @@ class JSTemplate(string.Template):
             'use strict';
             
             const libs = {libs};
+            
+            // trigger event immediately
+            require(['nbextensions/require/events'], (em) => {{
+                let cell = Jupyter.notebook.get_selected_cell();
+                
+                em.trigger.config_required(cell, libs);
+            }});
         
             function handle_error(error) {{ 
             
@@ -196,6 +227,7 @@ class JSTemplate(string.Template):
             }} 
             
             try {{
+            
                 require({libs}, function ({args}) {{
                 
                     /* user script */
@@ -224,30 +256,10 @@ class JSTemplate(string.Template):
 
 
 def create_comm(target: str,
-                func: str,
                 data: dict = None,
                 callback: callable = None,
                 **kwargs):
     """Create ipykernel message comm."""
-    script = """
-    Jupyter.notebook.kernel.comm_manager.register_target('$$target',
-         (comm, msg) => {
-            console.debug(comm, msg);
-
-            comm.on_msg(async(msg) => {
-                await $$function(msg.content.data);
-            });
-        }
-    );
-    
-    console.debug(`Comm '$$target' -> '$$function' registered.`);
-    """
-    # register comm on frontend side
-    execute_with_requirements(script, {}, target=target, function=func)
-
-    # wait for target to be registered
-    sleep(0.5)
-
     # create comm on python site
     comm = Comm(target_name=target, data=data, **kwargs)
     comm.on_msg(callback)
@@ -255,11 +267,11 @@ def create_comm(target: str,
     return comm
 
 
-def execute_with_requirements(script: str, required: dict, configured=True, **kwargs):
+def execute_with_requirements(script: str, required: Union[list, dict], configured=True, **kwargs):
     """Link required libraries and execute JS script.
 
     :param script: JS script to be executed
-    :param required: dict for requireJS config
+    :param required: list or dict (for requireJS config) of requirements
     :param configured: bool, whether requirements are already configured
 
         This speeds up the execution, so if the requirements are already configured,
@@ -271,9 +283,15 @@ def execute_with_requirements(script: str, required: dict, configured=True, **kw
     :param kwargs: optional keyword arguments passed to config and parser
     """
     if not configured:
-        require.config(required, **kwargs)
+        if isinstance(required, dict):
+            require.config(required, **kwargs)
+        else:
+            raise TypeError(
+                f"Attribute `required` expected to be dict, got {type(required)}.")
 
-    parsed_script = _parse_script(script, required=list(required.keys()), **kwargs)
+    required: list = required if isinstance(required, list) else list(required.keys())
+
+    parsed_script: str = _parse_script(script, required=required, **kwargs)
 
     return display(Javascript(parsed_script))
 
@@ -417,18 +435,6 @@ def load_js(script: str, attrs: dict = None):
     return display(Javascript(script_wrapped))
 
 
-def reload(clean=False):
-    """Reload and create new require object."""
-    global require
-
-    if clean:
-        require = RequireJS()
-    else:
-        require = RequireJS(required=require.libs, shim=require.shim)
-
-    require.__doc__ = RequireJS.config.__doc__
-
-
 def wait_for(script: str, timeout: int = None, **kwargs):
     """Execute given script and wait for it to finish or timeout.
 
@@ -443,4 +449,4 @@ def wait_for(script: str, timeout: int = None, **kwargs):
 
 
 require = RequireJS()
-require.__doc__ = RequireJS.config.__doc__
+require.__doc__ = RequireJS.__call__.__doc__
