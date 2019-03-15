@@ -1,9 +1,24 @@
 **/__pycache__
+*.egg-info/
+*.py[cod]
 .idea/
 .ipynb_checkpoints/
 
 build/
 dist/
 
+# virtualenvs
 env/
 venv/
+
+dist/
+build/
+
+# JS
+node_modules/
+
+# Compiled javascript
+**/static/
+
+# OS X
+.DS_Store
