@@ -134,6 +134,7 @@ define(function(require) {
             require([
                 'base/js/namespace',
                 'base/js/events',
+                './events',
                 './core',
             ], function (Jupyter, events, core) {
 
