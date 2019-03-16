@@ -58,9 +58,13 @@ class RequireJS(object):
         self._msg = None
         self._msg_received = None
 
-        # comms
-        self._config_comm = create_comm(
-            target='require', callback=self._store_callback)
+        # check if running in Jupyter notebook
+        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
+
+        if self._is_notebook:
+            # comms
+            self._config_comm = create_comm(
+                target='require', callback=self._store_callback)
 
         # update with default required libraries
         self.config(required or {}, shim or {})
@@ -127,7 +131,8 @@ class RequireJS(object):
         # data to be passed to require.config()
         self._msg = {'paths': self.__LIBS, 'shim': self.__SHIM}
 
-        self._config_comm.send(data=self._msg)
+        if self._is_notebook:
+            self._config_comm.send(data=self._msg)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.

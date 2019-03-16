@@ -39,3 +39,12 @@ def load_ipython_extension(ipython):
 
     # magic: %require
     ipython.register_magics(RequireJSMagic)
+
+
+def _jupyter_nbextension_paths():
+    return [{
+        'section': 'notebook',
+        'src': 'static',  # FIXME when migrated to node.js
+        'dest': 'jupyter-require',
+        'require': 'jupyter-require/extension'
+    }]
