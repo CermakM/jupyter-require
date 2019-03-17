@@ -18,7 +18,7 @@ build/
 node_modules/
 
 # Compiled javascript
-**/static/
+# **/static/  FIXME when migrated to node.js
 
 # OS X
 .DS_Store
