@@ -182,13 +182,6 @@ class JSTemplate(string.Template):
             'use strict';
             
             const libs = {libs};
-            
-            // trigger event immediately
-            require(['nbextensions/require/events'], (em) => {{
-                let cell = Jupyter.notebook.get_selected_cell();
-                
-                em.trigger.require(cell, libs);
-            }});
         
             function handle_error(error) {{ 
             
@@ -209,6 +202,12 @@ class JSTemplate(string.Template):
             if (libs.length > 0) {{
             
                 try {{
+                
+                    require(['nbextensions/require/events'], (em) => {{
+                        let cell = Jupyter.notebook.get_selected_cell();
+                        
+                        em.trigger.require(cell, libs);
+                    }});
                         
                     console.debug("Checking required libraries: ", libs);
                     
