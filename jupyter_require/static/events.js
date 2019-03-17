@@ -27,8 +27,8 @@ define(['base/js/events'], function(events) {
 
     return {
         trigger: {
-            config: _config,
-            require: _require
+            config  : _config,
+            require : _require
         }
     }
 });

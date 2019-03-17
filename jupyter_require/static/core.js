@@ -28,31 +28,47 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
 
 
     /**
-     * Load required libraries
+     * Register comm for messages from Python kernel
      *
-     * This function pauses execution of Jupyter kernel
-     * until require libraries are loaded
-     *
-     * @param config {Object} - requirejs configuration object
+     * @param target {string} - target as specified in `Comm`
+     * @param func {function} - function to be called on received message
+     * @param callback {function} - callback function
      */
-    let load_required_libraries = function (config) {
-        console.debug('Require config: ', config);
+    let register_target = function(target, func, callback) {
+        comm_manager.register_target(target,
+            (comm, msg) => {
+                console.debug(comm, msg);
 
-        let success = true;
-        let libs = config.paths;
+                comm.on_msg((msg) => {
+                    // TODO: figure out which cell triggered this
+                    let cell = Jupyter.notebook.get_selected_cell();
 
-        if ($.isEmptyObject(libs)) {
-            return Promise.resolve("No libraries to load.");
-        }
+                    callback = callback ? callback : console.debug;
 
-        console.log("Loading required libraries:", libs);
+                    func(msg.content.data)
+                        .then(() => callback(cell, msg))
+                        .catch(console.error);
 
-        require.config(config);
+                });
+            }
+        );
 
-        console.log("Linking required libraries:", libs);
+        console.debug(`Comm '${target}' registered.`);
+    };
+
+
+    function check_requirements(required) {
+        require(['nbextensions/jupyter-require/events'], (em) => {
+            let cell = Jupyter.notebook.get_selected_cell();
+
+            if (required.length > 0) em.trigger.require(cell, required);
+        });
+
+        console.debug("Checking required libraries: ", required);
 
         let defined = [];  // array of promises
-        Object.keys(libs).forEach( (lib) => {
+
+        required.forEach( (lib) => {
 
             let p = new Promise((resolve, reject) => {
 
@@ -67,7 +83,6 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
                 let errback = function() {
                     clearInterval(iid);
 
-                    success = false;
                     reject(`Library '${lib}' could not be loaded.`);
                 };
 
@@ -77,8 +92,52 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
             });
 
             defined.push(p);
-
         });
+
+        return defined;
+    }
+
+    function handle_error(error) {
+        console.error(error);
+
+        let traceback = error.stack ? error.stack.split('\n') : [""];
+
+        const output_error = {
+            ename: 'JupyterRequireError',
+            evalue: error.message || error,
+            traceback: traceback,
+            output_type: 'error'
+        };
+        let cell = Jupyter.notebook.get_selected_cell();
+
+        // append stack trace to the cell output element
+        cell.output_area.append_output(output_error);
+    }
+
+    /**
+     * Load required libraries
+     *
+     * This function pauses execution of Jupyter kernel
+     * until require libraries are loaded
+     *
+     * @param config {Object} - requirejs configuration object
+     */
+    let load_required_libraries = function (config) {
+        console.debug('Require config: ', config);
+
+        let libs = config.paths;
+
+        if ($.isEmptyObject(libs)) {
+            return Promise.resolve("No libraries to load.");
+        }
+
+        console.log("Loading required libraries:", libs);
+
+        require.config(config);
+
+        console.log("Linking required libraries:", libs);
+
+        let defined = check_requirements(Object.keys(libs));
 
         return Promise.all(defined).then(
             (values) => {
@@ -87,47 +146,35 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
             }).catch(console.error);
     };
 
-    /**
-     * Register comm for messages from Python kernel
-     *
-     * @param target {string} - target as specified in `Comm`
-     * @param func {function} - function to be called on received message
-     * @param callback {function} - callback function
-     */
-    let register_target = function(target, func, callback) {
-        comm_manager.register_target(target,
-            (comm, msg) => {
-                console.debug(comm, msg);
 
-                comm.on_msg((msg) => {
-                    // figure out which cell triggered this
-                    let cell = null;
-                    let selected_cell = Jupyter.notebook.get_selected_cell();
-                    let messages = selected_cell.metadata.messages;
+    function execute_with_requirements(d) {
+        // execution template
+        const script = d.script;
+        const required = d.required || [];
+        const params = d.params || required;
 
-                    if (messages && messages.some((d) => d.content.comm_id === comm.comm_id)) {
-                        cell = selected_cell;
-                    } else {
-                        cell = Jupyter.notebook.get_prev_cell(selected_cell);
-                    }
+        let js = `
+        require(${JSON.stringify(required)}, (${params.toString()}) => {
+            ${script.toString()}
+        });`;
 
-                    callback = callback || console.debug;
+        console.log(js);
 
-                    func(msg.content.data)
-                        .then(() => callback(cell, msg))
-                        .catch(console.error);
-
-                });
-            }
-        );
-
-        console.debug(`Comm '${target}' registered.`);
-    };
+        return Promise.all(check_requirements(required))
+            .then(() => {
+                try {
+                    eval(js);  // evaluate user script
+                } catch(err) { handle_error(err); }
+            })
+            .catch(handle_error);
+    }
 
 
     return {
-        load_required_libraries: load_required_libraries,
-        register_target: register_target
+        register_target           : register_target,
+        check_requirements        : check_requirements,
+        load_required_libraries   : load_required_libraries,
+        execute_with_requirements : execute_with_requirements,
     };
 
 });

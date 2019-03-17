@@ -61,10 +61,15 @@ class RequireJS(object):
         # check if running in Jupyter notebook
         self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
 
+        # comms
+        self._config_comm = None
+        self._execution_comm = None
+
         if self._is_notebook:
-            # comms
             self._config_comm = create_comm(
-                target='require', callback=self._store_callback)
+                target='config', callback=self._store_callback)
+            self._execution_comm = create_comm(
+                target='execute', callback=self._store_callback)
 
         # update with default required libraries
         self.config(required or {}, shim or {})
@@ -166,97 +171,22 @@ class JSTemplate(string.Template):
 
     delimiter = "$$"
 
-    def __init__(self, script: str, required: List[str] = None, **kwargs):
-        """Wrap the script in `require` function and instantiate template."""
-        required = required
-        libraries = json.dumps(required)
+    def __init__(self, template: str):
+        super().__init__(template)
 
-        args = kwargs.pop('args', []) or required
-        args = map(lambda s: s.rsplit('/')[-1], args)
-        args = ', '.join(args) \
-            .replace("'", '') \
-            .replace('-', '_') \
-            .replace('.', '_')
+        self._safe_substitute = self.safe_substitute
 
-        wrapped_script = """
-            'use strict';
-            
-            const libs = {libs};
-        
-            function handle_error(error) {{ 
-            
-                // append stack trace to the cell output element
-                let div = document.createElement('div');
-                
-                div = $('<div/>')
-                    .addClass('js-error')
-                    .html(error.stack.replace(/\sat/g, '<br>\tat') + '<hr>');
-                
-                $(element).append(div);
-                
-                // re-throw
-                throw error;
-            }}
-            
-            // check required libraries (if applicable)
-            if (libs.length > 0) {{
-            
-                try {{
-                
-                    require(['nbextensions/require/events'], (em) => {{
-                        let cell = Jupyter.notebook.get_selected_cell();
-                        
-                        em.trigger.require(cell, libs);
-                    }});
-                        
-                    console.debug("Checking required libraries: ", libs);
-                    
-                    libs.forEach( lib => {{
-                    
-                        let is_defined = require.defined(lib);
-                        console.debug(`Checking library: ${{lib}}`, is_defined ? '✓' : 'x');
-                        
-                        if (!is_defined) {{
-                            // throw
-                            throw new Error(`RequireError: Requirement could not be satisfied: '${{lib}}'.`);
-                        }}
-                        
-                    }});
-                    
-                }} catch(err) {{
-                    console.error("Error occurred while loading required libraries.");
-                    
-                    handle_error(err);
-                }}
-            }} 
-            
-            try {{
-            
-                require({libs}, function ({args}) {{
-                
-                    /* user script */
-                    /* ----------- */
-                    
-                    {script}
-                    
-                    /* ----------- */
-                    /* user script */
-                        
-                }});
-            }}
-            
-            catch(err) {{
-                console.error("Error occurred while executing script.");
-                
-                handle_error(err);
-            }}
-            
-        """.format(libs=libraries,
-                   args=args,
-                   script=script,
-                   **kwargs)
+        # prototype
+        def safe_substitute(*args, **kws):
+            """Safely substitute JS template variables."""
+            kwargs = {
+                key: sub if sub is not None else 'null'
+                for key, sub in kws.items()
+            }
 
-        super().__init__(dedent(wrapped_script))
+            return self._safe_substitute(*args, **kwargs)
+
+        self.safe_substitute = safe_substitute
 
 
 def create_comm(target: str,
@@ -295,12 +225,26 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
 
     required: list = required if isinstance(required, list) else list(required.keys())
 
-    parsed_script: str = _parse_script(script, required=required, **kwargs)
+    params = kwargs.pop('params', []) or required
+    params = map(lambda s: s.rsplit('/')[-1], params)
+    params = ', '.join(params) \
+        .replace("'", '') \
+        .replace('-', '_') \
+        .replace('.', '_')
 
-    return display(Javascript(parsed_script))
+    script = JSTemplate(script).safe_substitute(**kwargs)
+
+    data = {
+        'script': script,
+        'required': required,
+        'params': params,
+    }
+
+    # noinspection PyProtectedAccess
+    return require._execution_comm.send(data)  # pylint: disable=protected-access
 
 
-def execute_js(script: str, **kwargs):
+def execute(script: str, **kwargs):
     """Execute JS script.
 
     This functions implicitly loads libraries defined in requireJS config.
@@ -311,27 +255,7 @@ def execute_js(script: str, **kwargs):
     except NameError:  # require has not been defined yet, allowed
         pass
 
-    parsed_script = _parse_script(
-        script, required=required, **kwargs)
-
-    return display(Javascript(parsed_script))
-
-
-def _parse_script(script: str, **kwargs) -> str:
-    """Parse the JS script and returns string template."""
-    d3_template = JSTemplate(script, **kwargs)
-
-    return _substitute(d3_template, **kwargs)
-
-
-def _substitute(template: "JSTemplate", safe_substitute=True, **kwargs) -> str:
-    """Substitute Python template variables."""
-    if safe_substitute:
-        script = template.safe_substitute(**kwargs)
-    else:
-        script = template.substitute(**kwargs)
-
-    return script
+    return execute_with_requirements(script, required=required, **kwargs)
 
 
 def link_css(stylesheet: str, attrs: dict = None):

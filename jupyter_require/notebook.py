@@ -78,12 +78,17 @@ def load_nbextension(nbextension, endpoint: str = 'extension', enable=True):
         script, required=['base/js/utils'], nbextension=nbextension, endpoint=endpoint)
 
 
-def clear_cell_metadata(index: int):
+def clear_cell_metadata(index: int = None):
     """Clear cell requirement metadata."""
     script = """
-    let cell = Jupyter.notebook.get_cell($$index);
+    const index = $$index;
     
-    if (cell.metadata.hasOwnProperty('require')) delete cell.metadata.require;
+    let cells = Number.isInteger(index) ? [Jupyter.notebook.get_cell($$index)]
+                                        : Jupyter.notebook.get_cells();
+    
+    cells.forEach((d, i) => {
+        if (d.metadata.hasOwnProperty('require')) delete d.metadata.require;
+    });
     """
 
     return execute_with_requirements(script, required=[], index=index)

@@ -36,7 +36,8 @@ define(function(require) {
         // configuration
         let em = require('./events');
 
-        core.register_target('require', core.load_required_libraries, em.trigger.require)
+        core.register_target('config', core.load_required_libraries);
+        core.register_target('execute', core.execute_with_requirements);
     }
 
 
@@ -85,7 +86,7 @@ define(function(require) {
      * Get requirejs config from notebook metadata
      *
      */
-    function get_notebook_config(nb) { return nb.metadata.require || Jupyter.notebook.metadata.require; }
+    function get_notebook_config(nb) { return nb.metadata.require || {}; }
 
     /**
      * Get cell requirement metadata
