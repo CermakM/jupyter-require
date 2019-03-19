@@ -24,37 +24,71 @@
 define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter, $, requirejs, em) {
     'use strict';
 
-    const comm_manager = Jupyter.notebook.kernel.comm_manager;
+    const MIME_JAVASCRIPT = 'application/javascript';
+
+    let comm_manager = Jupyter.notebook.kernel.comm_manager;
 
 
     /**
-     * Register comm for messages from Python kernel
-     *
-     * @param target {string} - target as specified in `Comm`
-     * @param func {function} - function to be called on received message
-     * @param callback {function} - callback function
+     * Asynchronous Function constructor
      */
-    let register_target = function(target, func, callback) {
-        comm_manager.register_target(target,
+    let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+
+    /**
+     * Register comms for messages from Python kernel
+     *
+     */
+    function register_targets() {
+        let target = 'execute';
+        comm_manager.register_target('execute',
             (comm, msg) => {
-                console.debug(comm, msg);
+                console.debug('Comm: ', comm, 'initial message: ', msg);
 
-                comm.on_msg((msg) => {
-                    // TODO: figure out which cell triggered this
+                comm.on_msg(async (msg) => {
+                    console.debug('Comm: ', comm, 'message: ', msg);
+
+                    // TODO: figure out which cell really triggered this
                     let cell = Jupyter.notebook.get_selected_cell();
+                    let output_area = cell.output_area;
 
-                    callback = callback ? callback : console.debug;
+                    let toinsert = output_area.create_output_subarea(
+                        {}, "output_javascript rendered_html", MIME_JAVASCRIPT);
 
-                    func(msg.content.data)
-                        .then(() => callback(cell, msg))
+                    output_area.keyboard_manager.register_events(toinsert);
+                    output_area.element.append(toinsert);
+
+                    let context = {
+                        cell: cell,
+                        element: toinsert,
+                        output_area: output_area
+                    };
+
+                    return await execute_with_requirements(msg.content.data, context)
+                        .then((values) => console.debug(values))
                         .catch(console.error);
-
                 });
+
+                console.debug(`Comm '${target}' registered.`);
             }
         );
 
-        console.debug(`Comm '${target}' registered.`);
-    };
+        target = 'config';
+        comm_manager.register_target('config',
+            (comm, msg) => {
+                console.debug('Comm: ', comm, 'initial message: ', msg);
+
+                comm.on_msg(async (msg) => {
+                    console.debug('Comm: ', comm, 'message: ', msg);
+                    return await load_required_libraries(msg.content.data)
+                        .then((values) => console.debug(values))
+                        .catch(console.error);
+                });
+
+                console.debug(`Comm '${target}' registered.`);
+            }
+        );
+
+    }
 
 
     function check_requirements(required) {
@@ -120,9 +154,9 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
      * This function pauses execution of Jupyter kernel
      * until require libraries are loaded
      *
-     * @param config {Object} - requirejs configuration object
+     * @param config {Object}  - requirejs configuration object
      */
-    let load_required_libraries = function (config) {
+    async function load_required_libraries (config) {
         console.debug('Require config: ', config);
 
         let libs = config.paths;
@@ -139,39 +173,55 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
 
         let defined = check_requirements(Object.keys(libs));
 
-        return Promise.all(defined).then(
+        return await Promise.all(defined).then(
             (values) => {
                 console.log('Success: ', values);
                 em.trigger.config(config);
             }).catch(console.error);
-    };
+    }
 
 
-    function execute_with_requirements(d) {
-        // execution template
+    /**
+     * Execute JS script with requirements
+     *
+     * This function pauses execution of Jupyter kernel
+     * until require libraries are loaded
+     *
+     * @param d {Object}  - data object passed to a comm msg
+     * @param context {Object} - context passed from caller
+     */
+    async function execute_with_requirements(d, context) {
         const script = d.script;
         const required = d.required || [];
-        const params = d.params || required;
+        const params = d.params || required.replace(/[|&$%@"<>()+-.,;]/g, "");
 
-        let js = `
-        require(${JSON.stringify(required)}, (${params.toString()}) => {
-            ${script.toString()}
-        });`;
+        // expose element to the user script
+        params.push('element');
 
-        console.log(js);
+        let wrapped = new AsyncFunction(...params, script.toString());
 
-        return Promise.all(check_requirements(required))
-            .then(() => {
-                try {
-                    eval(js);  // evaluate user script
-                } catch(err) { handle_error(err); }
+        return await Promise.all(check_requirements(required))
+            .then(async () => {
+                return await new Promise(async (resolve, reject) => {
+                    require(required, (...args) => {
+                        console.debug(
+                            "Executing user script with context: ", context, 'data: ', d);
+                        wrapped.apply(context.output_area, [...args, context.element])
+                            .then((r) => {
+                                console.debug("Success.");
+                                resolve(r);
+                            }).catch(reject);
+                    });
+                    setTimeout(reject, 5000);
+                });
             })
             .catch(handle_error);
     }
 
 
     return {
-        register_target           : register_target,
+        AsyncFunction             : AsyncFunction,
+        register_targets          : register_targets,
         check_requirements        : check_requirements,
         load_required_libraries   : load_required_libraries,
         execute_with_requirements : execute_with_requirements,

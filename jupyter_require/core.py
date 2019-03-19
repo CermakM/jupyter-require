@@ -226,11 +226,7 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
     required: list = required if isinstance(required, list) else list(required.keys())
 
     params = kwargs.pop('params', []) or required
-    params = map(lambda s: s.rsplit('/')[-1], params)
-    params = ', '.join(params) \
-        .replace("'", '') \
-        .replace('-', '_') \
-        .replace('.', '_')
+    params = list(map(lambda s: s.rsplit('/')[-1], params))
 
     script = JSTemplate(script).safe_substitute(**kwargs)
 

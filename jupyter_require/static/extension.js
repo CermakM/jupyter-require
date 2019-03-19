@@ -26,20 +26,6 @@ define(function(require) {
 
     let Jupyter = require('base/js/namespace');
     let events  = require('base/js/events');
-    let core = require('./core');
-
-    /**
-     * Register JupyterRequire comm targets
-     *
-     */
-    function register_targets() {
-        // configuration
-        let em = require('./events');
-
-        core.register_target('config', core.load_required_libraries);
-        core.register_target('execute', core.execute_with_requirements);
-    }
-
 
     /**
      * Register JupyterRequire event handlers
@@ -142,7 +128,7 @@ define(function(require) {
                 const config = get_notebook_config(Jupyter.notebook);
                 let cells = Jupyter.notebook.get_cells();
 
-                register_targets();
+                core.register_targets();
                 register_events();
 
                 if (config !== undefined) {
