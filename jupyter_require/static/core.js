@@ -51,11 +51,14 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
                     let cell = Jupyter.notebook.get_selected_cell();
                     let output_area = cell.output_area;
 
+                    let output = output_area.create_output_area();
                     let toinsert = output_area.create_output_subarea(
                         {}, "output_javascript rendered_html", MIME_JAVASCRIPT);
 
                     output_area.keyboard_manager.register_events(toinsert);
-                    output_area.element.append(toinsert);
+                    output_area.element.append(output);
+
+                    output.append(toinsert);
 
                     let context = {
                         cell: cell,
