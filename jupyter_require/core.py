@@ -256,12 +256,12 @@ def execute(script: str, **kwargs):
 
 def link_css(stylesheet: str, attrs: dict = None):
     """Link CSS stylesheet."""
-    script = (
-        "'use strict';"
+    script = """
+        'use strict';
         
-        f"const href = \"{stylesheet}\";"
-        f"const attributes = {attrs};"
-        """
+        const href = "$$href";
+        const attributes = $$attrs;
+        
         let link = document.createElement("link");
         link.rel = "stylesheet";
         link.type = "text/css";
@@ -275,39 +275,42 @@ def link_css(stylesheet: str, attrs: dict = None):
             .forEach( ([attr, val]) => $(link).attr(attr, val) );
         
         document.head.appendChild(link);
-        """
-    )
+    """
 
-    return display(Javascript(script))
+    parsed = JSTemplate(script).safe_substitute(
+        href=stylesheet, attrs=attrs)
+
+    return display(Javascript(parsed))
 
 
 def link_js(lib: str):
     """Link JavaScript library."""
-    script = (
-        "'use strict';"
+    script = """
+        'use strict';
         
-        f"const src = \"{lib}\";"
-        """
+        const src = "$$lib";
         let script = document.createElement("script");
         script.src = src;
 
         document.head.appendChild(script);
-        """
-    )
+    """
 
-    return display(Javascript(script))
+    parsed = JSTemplate(script).safe_substitute(
+        lib=lib)
+
+    return display(Javascript(parsed))
 
 
 def load_css(style: str, attrs: dict = None):
     """Create new style element and add it to the page."""
     attrs = attrs or {}
 
-    script = (
-        "'use strict';"
+    script = """
+        'use strict'"
         
-        f"const style = `{style}`;"
-        f"const attributes = {attrs};"
-        """
+        const style = `$$style`;
+        const attributes = $$attrs;
+        
         let id = attributes.id;
         let elem_exists = id ? $(`style#${id}`).length > 0 : false;
         
@@ -320,10 +323,12 @@ def load_css(style: str, attrs: dict = None):
             .forEach( ([attr, val]) => $(e).attr(attr, val) );
 
         if (!elem_exists) document.head.appendChild(e);
-        """
-    )
+    """
 
-    return display(Javascript(script))
+    parsed = JSTemplate(script).safe_substitute(
+        style=style, attrs=attrs)
+
+    return display(Javascript(parsed))
 
 
 def load_js(script: str, attrs: dict = None):
@@ -335,12 +340,12 @@ def load_js(script: str, attrs: dict = None):
         .replace('`', '\`') \
         .replace('${', '\${')
 
-    script_wrapped = (
-        "'use strict';"
-
-        f"const script = `{script}`;"
-        f"const attributes = {attrs};"
-        """
+    script = """
+        'use strict';
+    
+        const script = `$$script`;
+        const attributes = $$attrs;
+        
         let id = attributes.id;
         let elem_exists = id ? $(`script#${id}`).length > 0 : false;
         
@@ -353,10 +358,12 @@ def load_js(script: str, attrs: dict = None):
             .forEach( ([attr, val]) => $(e).attr(attr, val) );
 
         if (!elem_exists) document.head.appendChild(e);
-        """
-    )
+    """
 
-    return display(Javascript(script_wrapped))
+    parsed = JSTemplate(script).safe_substitute(
+        script=script, attrs=attrs)
+
+    return display(Javascript(parsed))
 
 
 def wait_for(script: str, timeout: int = None, **kwargs):
