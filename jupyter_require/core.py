@@ -280,7 +280,7 @@ def link_css(stylesheet: str, attrs: dict = None):
     parsed = JSTemplate(script).safe_substitute(
         href=stylesheet, attrs=attrs)
 
-    return display(Javascript(parsed))
+    return execute_with_requirements(parsed, required=[])
 
 
 def link_js(lib: str):
@@ -298,7 +298,7 @@ def link_js(lib: str):
     parsed = JSTemplate(script).safe_substitute(
         lib=lib)
 
-    return display(Javascript(parsed))
+    return execute_with_requirements(parsed, required=[])
 
 
 def load_css(style: str, attrs: dict = None):
@@ -328,7 +328,7 @@ def load_css(style: str, attrs: dict = None):
     parsed = JSTemplate(script).safe_substitute(
         style=style, attrs=attrs)
 
-    return display(Javascript(parsed))
+    return execute_with_requirements(parsed, required=[])
 
 
 def load_js(script: str, attrs: dict = None):
@@ -363,7 +363,7 @@ def load_js(script: str, attrs: dict = None):
     parsed = JSTemplate(script).safe_substitute(
         script=user_script, attrs=attrs)
 
-    return display(Javascript(parsed))
+    return execute_with_requirements(parsed, required=[])
 
 
 require = RequireJS()
