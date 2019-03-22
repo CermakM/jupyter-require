@@ -34,13 +34,18 @@ define(function(require) {
     function register_events() {
         events.on('config.JupyterRequire', (e, d) => set_notebook_metadata(d.config));
         events.on('require.JupyterRequire', (e, d) => set_cell_requirements(d.cell, d.require));
+
+        events.on('execute.CodeCell', (e, d) => d.cell.running = true);
+        events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
     }
 
     /**
      * Initialize requirements in existing cells
      *
      */
-    async function init_existing_cells(cells) {
+    async function init_existing_cells() {
+        let cells = Jupyter.notebook.get_cells();
+
         cells.forEach((cell) => {
             let required = get_cell_requirements(cell);
 
@@ -56,6 +61,8 @@ define(function(require) {
                     }
                 });
             }
+
+            cell.running = false;
         });
     }
 
@@ -126,14 +133,13 @@ define(function(require) {
             ], function (Jupyter, events, em, core) {
 
                 const config = get_notebook_config(Jupyter.notebook);
-                let cells = Jupyter.notebook.get_cells();
 
                 core.register_targets();
                 register_events();
 
                 if (config !== undefined) {
                     core.load_required_libraries(config)
-                        .then(() => init_existing_cells(cells))
+                        .then(() => init_existing_cells())
                         .catch(console.error);
                 }
 

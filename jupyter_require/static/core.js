@@ -21,34 +21,69 @@
  */
 
 
-define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter, $, requirejs, em) {
+define(['base/js/namespace', 'notebook/js/notebook', './events'], function(Jupyter, notebook, em) {
     'use strict';
 
-    const MIME_JAVASCRIPT = 'application/javascript';
+    let Notebook = notebook.Notebook;
 
-    let comm_manager = Jupyter.notebook.kernel.comm_manager;
+    /**
+     * Get running cells
+     */
+    Notebook.prototype.get_running_cells = function() {
+        let cells = this.get_cells();
 
+        return cells.filter((c) => c.running);
+    };
+
+    /**
+     * Get running cell indices
+     */
+    Notebook.prototype.get_running_cells_indices = function() {
+        let cells = this.get_cells();
+
+        return cells.filter((c) => c.running).map((c, i) => i);
+    };
 
     /**
      * Asynchronous Function constructor
      */
     let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
+
+    // mime types
+    const MIME_HTML = 'text/html';
+    const MIME_JAVASCRIPT = 'application/javascript';
+
     /**
      * Register comms for messages from Python kernel
      *
      */
     function register_targets() {
+        let comm_manager = Jupyter.notebook.kernel.comm_manager;
+
         let target = 'execute';
-        comm_manager.register_target('execute',
+        comm_manager.register_target(target,
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
 
                 comm.on_msg(async (msg) => {
                     console.debug('Comm: ', comm, 'message: ', msg);
 
-                    // TODO: figure out which cell really triggered this
-                    let cell = Jupyter.notebook.get_selected_cell();
+                    // get running cell or fall back to current cell
+                    let cell = null;
+                    try {
+                        cell = Jupyter.notebook.get_running_cells()[0];
+                    } catch {
+                        // fallback, may select wrong cell but better than die out
+                        let selected_cell = Jupyter.notebook.get_selected_cell();
+
+                        if (selected_cell.cell_type === 'code') {
+                            cell = selected_cell;
+                        } else {
+                            cell = Jupyter.notebook.get_prev_cell(selected_cell);
+                        }
+                    }
+
                     let output_area = cell.output_area;
 
                     let output = output_area.create_output_area();
@@ -76,7 +111,7 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
         );
 
         target = 'config';
-        comm_manager.register_target('config',
+        comm_manager.register_target(target,
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
 
@@ -196,8 +231,11 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
     async function execute_with_requirements(d, context) {
         const script = d.script;
         const required = d.required || [];
-        const params = d.params || required.replace(/[|&$%@"<>()+-.,;]/g, "");
 
+        let params = d.params || required;
+
+        // get rid of invalid characters
+        params = params.map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""));
         // expose element to the user script
         params.push('element');
 
@@ -206,7 +244,7 @@ define(['base/js/namespace', 'jquery', 'require', './events'], function(Jupyter,
         return await Promise.all(check_requirements(required))
             .then(async () => {
                 return await new Promise(async (resolve, reject) => {
-                    require(required, (...args) => {
+                    requirejs(required, (...args) => {
                         console.debug(
                             "Executing user script with context: ", context, 'data: ', d);
                         wrapped.apply(context.output_area, [...args, context.element])

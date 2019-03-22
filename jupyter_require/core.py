@@ -260,7 +260,7 @@ def link_css(stylesheet: str, attrs: dict = None):
         'use strict';
         
         const href = "$$href";
-        const attributes = $$attrs;
+        const attributes = $$attrs || {};
         
         let link = document.createElement("link");
         link.rel = "stylesheet";
@@ -306,10 +306,10 @@ def load_css(style: str, attrs: dict = None):
     attrs = attrs or {}
 
     script = """
-        'use strict'"
+        'use strict'
         
         const style = `$$style`;
-        const attributes = $$attrs;
+        const attributes = $$attrs || {};
         
         let id = attributes.id;
         let elem_exists = id ? $(`style#${id}`).length > 0 : false;
@@ -336,7 +336,7 @@ def load_js(script: str, attrs: dict = None):
     attrs = attrs or {}
 
     # escape dollar signs inside ticks and ticks
-    script = script \
+    user_script = script \
         .replace('`', '\`') \
         .replace('${', '\${')
 
@@ -344,7 +344,7 @@ def load_js(script: str, attrs: dict = None):
         'use strict';
     
         const script = `$$script`;
-        const attributes = $$attrs;
+        const attributes = $$attrs || {};
         
         let id = attributes.id;
         let elem_exists = id ? $(`script#${id}`).length > 0 : false;
@@ -361,22 +361,9 @@ def load_js(script: str, attrs: dict = None):
     """
 
     parsed = JSTemplate(script).safe_substitute(
-        script=script, attrs=attrs)
+        script=user_script, attrs=attrs)
 
     return display(Javascript(parsed))
-
-
-def wait_for(script: str, timeout: int = None, **kwargs):
-    """Execute given script and wait for it to finish or timeout.
-
-    This function pauses the IPython kernel until the script
-    returns.
-
-    :param script: str, JS script to execute
-    :param timeout: int, timeout in ms, if exceeded, raises TimeOutError
-
-    :raises TimeOutError
-    """
 
 
 require = RequireJS()
