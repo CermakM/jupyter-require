@@ -214,7 +214,7 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
         Assume True, as user is expected to run `require.config()`
         at the initialization time.
 
-    :param kwargs: optional keyword arguments passed to config and parser
+    :param kwargs: optional keyword arguments for template substitution
     """
     if not configured:
         if isinstance(required, dict):

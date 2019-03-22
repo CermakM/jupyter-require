@@ -24,20 +24,9 @@
 define(function(require) {
     'use strict';
 
+    let core    = require('./core');
     let Jupyter = require('base/js/namespace');
-    let events  = require('base/js/events');
 
-    /**
-     * Register JupyterRequire event handlers
-     *
-     */
-    function register_events() {
-        events.on('config.JupyterRequire', (e, d) => set_notebook_metadata(d.config));
-        events.on('require.JupyterRequire', (e, d) => set_cell_requirements(d.cell, d.require));
-
-        events.on('execute.CodeCell', (e, d) => d.cell.running = true);
-        events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
-    }
 
     /**
      * Initialize requirements in existing cells
@@ -47,7 +36,7 @@ define(function(require) {
         let cells = Jupyter.notebook.get_cells();
 
         cells.forEach((cell) => {
-            let required = get_cell_requirements(cell);
+            let required = core.get_cell_requirements(cell);
 
             if (required.length > 0) {
                 console.debug("Checking libraries required by cell: ", cell, required);
@@ -57,65 +46,13 @@ define(function(require) {
 
                     if (is_defined) {
                         // now update the output with already loaded libraries
-                        update_cell_output(cell);
+                        // core.restore_output(cell);
                     }
                 });
             }
 
             cell.running = false;
         });
-    }
-
-    /**
-     * Whether current cell has requirements.
-     *
-     * @param cell {codeCell} - notebook cell
-     * @returns {boolean}
-     */
-    function has_requirements(cell) { return cell.metadata.require !== undefined; }
-
-
-    /**
-     * Get requirejs config from notebook metadata
-     *
-     */
-    function get_notebook_config(nb) { return nb.metadata.require || {}; }
-
-    /**
-     * Get cell requirement metadata
-     *
-     * @param cell {codeCell} - notebook cell
-     */
-    function get_cell_requirements(cell) { return cell.metadata.require || []; }
-
-
-    /**
-     * Set cell requirement metadata
-     *
-     * @param cell {codeCell} - notebook cell to update metadata
-     * @param required {Object} - requirements config object
-     */
-    function set_cell_requirements(cell, required) { cell.metadata.require = required; }
-
-     /**
-     * Set notebook metadata
-     *
-     * @param config {Object} - requirejs configuration object
-     */
-    function set_notebook_metadata(config) { Jupyter.notebook.metadata.require = config; }
-
-    /**
-     * Update cell output
-     *
-     * @param cell {codeCell} - notebook cell to update
-     */
-    function update_cell_output(cell) {
-        if (cell.cell_type !== 'code') return;
-
-        let outputs = cell.output_area.outputs;
-
-        cell.output_area.clear_output();
-        outputs.forEach((d) => cell.output_area.append_output(d));
     }
 
 
@@ -128,14 +65,14 @@ define(function(require) {
             require([
                 'base/js/namespace',
                 'base/js/events',
-                './events',
+                './event_manager',
                 './core',
             ], function (Jupyter, events, em, core) {
 
-                const config = get_notebook_config(Jupyter.notebook);
+                const config = core.get_notebook_config();
 
                 core.register_targets();
-                register_events();
+                core.register_events();
 
                 if (config !== undefined) {
                     core.load_required_libraries(config)
