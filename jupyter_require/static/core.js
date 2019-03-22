@@ -21,7 +21,11 @@
  */
 
 
-define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], function(Jupyter, notebook, event_manager) {
+define([
+    'base/js/namespace',
+    'base/js/events',
+    'notebook/js/notebook',
+], function(Jupyter, events, notebook) {
     'use strict';
 
     let Notebook = notebook.Notebook;
@@ -87,11 +91,9 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
      * @returns {Array}
      */
     function check_requirements(required) {
-        require(['nbextensions/jupyter-require/event_manager'], (em) => {
-            let cell = Jupyter.notebook.get_selected_cell();
+        let cell = Jupyter.notebook.get_selected_cell();
 
-            if (required.length > 0) em.trigger_require(cell, required);
-        });
+        if (required.length > 0) events.trigger('require.JupyterRequire', {cell: cell, require: required});
 
         console.debug("Checking required libraries: ", required);
 
@@ -175,7 +177,7 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
         return await Promise.all(defined).then(
             (values) => {
                 console.log('Success: ', values);
-                event_manager.trigger_config(config);
+                events.trigger('config.JupyterRequire', {config: config});
             }).catch(handle_error);
     }
 
@@ -191,9 +193,9 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
      */
     async function execute_with_requirements(d, context) {
         const script = d.script;
-        const required = d.required || [];
+        const required = d.require || [];
 
-        let params = d.params || required;
+        let params = d.parameters || required;
 
         // get rid of invalid characters
         params = params.map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""));
@@ -226,20 +228,80 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
     const MIME_TEXT = 'text/plain';
 
 
-    function _set_default_output(cell) {
-        let json = {
-            data: {
-                [MIME_TEXT]: "<IPython.core.display.Javascript object>"  // be consistent here
-            },
-            execution_count: cell.input_prompt_number,
-            metadata: {},
-            output_type: 'execute_result',
-            transient: undefined
-        };
+    const default_output = {
+        data: {
+            [MIME_TEXT]: "<IPython.core.display.Javascript object>"  // be consistent here
+        },
+        execution_count: null,
+        metadata: {},
+        output_type: 'execute_result',
+        transient: undefined
+    };
 
-        cell.output_area.outputs = [json];
+
+    /**
+     * Get cell output HTML from div.output
+     *
+     * @param cell {CodeCell} - notebook cell
+     * @returns {*} DOM div.output element
+     */
+    function get_cell_output(cell) {
+        return cell.output_area.element.get(0);
     }
 
+    /**
+     * Append output HTML to div.output of the cell output area
+     *
+     * @param cell {CodeCell} - notebook cell
+     * @param output html to be stored in div.output
+     */
+    function append_output(cell, output) {
+        $(cell.output_area.element.get(0)).html(output);
+    }
+
+    /**
+     * Save cell outputs for future restore
+     *
+     * @param cell {CodeCell} - notebook cell
+     */
+    function save_cell_output_metadata(cell) {
+        if (!(cell.cell_type === 'code' && cell.metadata.require !== undefined)) return;
+
+        let html_output = get_cell_output(cell);
+
+        cell.metadata.display = {
+            [MIME_HTML]: html_output,
+            [MIME_TEXT]: default_output,
+        };
+    }
+
+    /**
+     * Save cell execution metadata
+     *
+     * @param cell {CodeCell} - notebook cell
+     * @param data {CodeCell} - execution data
+     */
+    function save_cell_execution_metadata(cell, data) {
+        let required = cell.metadata.require;
+        if (!(cell.cell_type === 'code' && required !== undefined)) return;
+
+        cell.metadata.execute = {
+            [MIME_JAVASCRIPT]: data
+        }
+    }
+
+    function save_cell_metadata() {
+        let cells = Jupyter.notebook.get_cells();
+
+        return new Promise((resolve) => {
+            cells.forEach((c) => {
+                save_cell_output_metadata(c);
+                save_cell_execution_metadata(c);
+            });
+
+            resolve();
+        });
+    }
 
     /**
      * Register comms for messages from Python kernel
@@ -289,7 +351,7 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
                         output_area: output_area
                     };
 
-                    _set_default_output(cell);
+                    output_area.outputs.push(default_output);
 
                     return await execute_with_requirements(msg.content.data, context)
                         .then((values) => console.debug(values))
@@ -318,24 +380,14 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
 
     }
 
-    /**
-     * Register JupyterRequire event handlers
-     *
-     */
-    function register_events() {
-        event_manager.on('config.JupyterRequire', (e, d) => set_notebook_config(d.config));
-        event_manager.on('require.JupyterRequire', (e, d) => set_cell_requirements(d.cell, d.require));
-
-        event_manager.on('execute.CodeCell', (e, d) => d.cell.running = true);
-        event_manager.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
-    }
-
 
     return {
         AsyncFunction             : AsyncFunction,
 
         get_cell_requirements     : get_cell_requirements,
         set_cell_requirements     : set_cell_requirements,
+
+        save_cell_metadata        : save_cell_metadata,
 
         get_notebook_config       : get_notebook_config,
         set_notebook_config       : set_notebook_config,
@@ -345,7 +397,6 @@ define(['base/js/namespace', 'notebook/js/notebook', './event_manager'], functio
 
         load_required_libraries   : load_required_libraries,
 
-        register_events           : register_events,
         register_targets          : register_targets,
     };
 

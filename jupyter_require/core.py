@@ -232,8 +232,8 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
 
     data = {
         'script': script,
-        'required': required,
-        'params': params,
+        'require': required,
+        'parameters': params,
     }
 
     # noinspection PyProtectedAccess

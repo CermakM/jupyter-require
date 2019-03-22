@@ -25,7 +25,23 @@ define(function(require) {
     'use strict';
 
     let core    = require('./core');
+    let events  = require('base/js/events');
     let Jupyter = require('base/js/namespace');
+
+
+    /**
+     * Register JupyterRequire event handlers
+     *
+     */
+    function register_events() {
+        events.on('config.JupyterRequire', (e, d) => core.set_notebook_config(d.config));
+        events.on('require.JupyterRequire', (e, d) => core.set_cell_requirements(d.cell, d.require));
+
+        events.on('execute.CodeCell', (e, d) => d.cell.running = true);
+        events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
+
+        events.on('before_save.Notebook', core.save_cell_metadata);
+    }
 
 
     /**
@@ -65,14 +81,13 @@ define(function(require) {
             require([
                 'base/js/namespace',
                 'base/js/events',
-                './event_manager',
                 './core',
-            ], function (Jupyter, events, em, core) {
+            ], function (Jupyter, events, core) {
 
                 const config = core.get_notebook_config();
 
                 core.register_targets();
-                core.register_events();
+                register_events();
 
                 if (config !== undefined) {
                     core.load_required_libraries(config)

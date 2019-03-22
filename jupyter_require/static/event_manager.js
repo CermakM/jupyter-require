@@ -13,7 +13,7 @@
  */
 
 
-define(['base/js/events'], function(events) {
+define(function(require) {
 
     let EventManager = function(events) {
         this.events = events;
@@ -24,7 +24,7 @@ define(['base/js/events'], function(events) {
     };
 
     EventManager.prototype.trigger = function() {
-        return this.events.on.trigger(arguments);
+        return this.events.trigger.apply(arguments);
     };
 
     /**
@@ -33,7 +33,7 @@ define(['base/js/events'], function(events) {
      * @param config
      */
     EventManager.prototype.trigger_config = function (config) {
-        events.trigger(
+        this.events.trigger(
             'config.JupyterRequire', {config: config})
     };
 
@@ -45,9 +45,9 @@ define(['base/js/events'], function(events) {
      * @param required
      */
     EventManager.prototype.trigger_require = function (cell, required) {
-        events.trigger(
+        this.events.trigger(
             'require.JupyterRequire', {cell: cell, require: required})
     };
 
-    return new EventManager(events);
+    return EventManager;
 });
