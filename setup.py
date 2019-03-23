@@ -54,7 +54,7 @@ cmdclass['js'] = combine_commands(
     # ),
     ensure_targets([
         NAME + '/static/core.js',  # FIXME when migrated to nodes.js
-        NAME + '/static/event_manager.js',  # FIXME when migrated to nodes.js
+        NAME + '/static/display.js',  # FIXME when migrated to nodes.js
         NAME + '/static/extension.js',
         # NAME + '/static/index.js',  # FIXME when migrated to nodes.js
     ]),

@@ -40,7 +40,7 @@ define(function(require) {
         events.on('execute.CodeCell', (e, d) => d.cell.running = true);
         events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
 
-        events.on('before_save.Notebook', core.save_cell_metadata);
+        // events.on('before_save.Notebook', () => {});
     }
 
 

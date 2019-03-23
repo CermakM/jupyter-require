@@ -22,10 +22,12 @@
 
 
 define([
+    'underscore',
     'base/js/namespace',
     'base/js/events',
     'notebook/js/notebook',
-], function(Jupyter, events, notebook) {
+    './display'
+], function(_, Jupyter, events, notebook, display) {
     'use strict';
 
     let Notebook = notebook.Notebook;
@@ -181,126 +183,67 @@ define([
             }).catch(handle_error);
     }
 
+    /**
+     * Execute function with requirements in an output_area context
+     *
+     * @param func {Function} - expression to execute
+     * @param required {Array} - required libraries
+     * @param cell {CodeCell} - current code cell
+     * @returns {Promise<any>}
+     */
+    function execute_with_requirements(func, required, cell) {
+        return new Promise(async (resolve, reject) => {
+            let output_area = cell.output_area;
+
+            let output = output_area.create_output_area();
+            let toinsert = output_area.create_output_subarea(
+                {}, "output_javascript rendered_html", display.mime_types.MIME_JAVASCRIPT);
+
+            output_area.keyboard_manager.register_events(toinsert);
+            output_area.element.append(output);
+
+            output.append(toinsert);
+
+            requirejs(required, (...args) => {
+                func.apply(output_area, [...args, toinsert])
+                    .then(() => {
+                        resolve(toinsert);
+                    }).catch(reject);
+            });
+            setTimeout(reject, 5000, new Error("Script execution timeout."));
+        });
+    }
 
     /**
-     * Execute JS script with requirements
+     * Wrap and Execute JS script in a cell context
      *
      * This function pauses execution of Jupyter kernel
-     * until require libraries are loaded
+     * until required libraries are loaded
      *
-     * @param d {Object}  - data object passed to a comm msg
-     * @param context {Object} - context passed from caller
+     * @returns {Function} - wrapped execution partial function
      */
-    async function execute_with_requirements(d, context) {
-        const script = d.script;
-        const required = d.require || [];
-
-        let params = d.parameters || required;
+    async function execute_script(script, required, params) {
 
         // get rid of invalid characters
         params = params.map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""));
         // expose element to the user script
         params.push('element');
 
-        let wrapped = new AsyncFunction(...params, script.toString());
+        let cell = this;  // current CodeCell
 
-        return await Promise.all(check_requirements(required))
+        let wrapped = new AsyncFunction(...params, script.toString());
+        let execute = _.partial(execute_with_requirements, wrapped, required);
+
+        let element = null;
+        await Promise.all(check_requirements(required))
             .then(async () => {
-                return await new Promise(async (resolve, reject) => {
-                    requirejs(required, (...args) => {
-                        console.debug(
-                            "Executing user script with context: ", context, 'data: ', d);
-                        wrapped.apply(context.output_area, [...args, context.element])
-                            .then((r) => {
-                                console.debug("Success.");
-                                resolve(r);
-                            }).catch(reject);
-                    });
-                    setTimeout(reject, 5000);
-                });
+                console.debug("Executing user script in context: ", cell);
+                element = await execute(cell);
+                console.debug("Success.");
             })
             .catch(handle_error);
-    }
 
-    // mime types
-    const MIME_JAVASCRIPT = 'application/javascript';
-    const MIME_HTML = 'text/html';
-    const MIME_TEXT = 'text/plain';
-
-
-    const default_output = {
-        data: {
-            [MIME_TEXT]: "<IPython.core.display.Javascript object>"  // be consistent here
-        },
-        execution_count: null,
-        metadata: {},
-        output_type: 'execute_result',
-        transient: undefined
-    };
-
-
-    /**
-     * Get cell output HTML from div.output
-     *
-     * @param cell {CodeCell} - notebook cell
-     * @returns {*} DOM div.output element
-     */
-    function get_cell_output(cell) {
-        return cell.output_area.element.get(0);
-    }
-
-    /**
-     * Append output HTML to div.output of the cell output area
-     *
-     * @param cell {CodeCell} - notebook cell
-     * @param output html to be stored in div.output
-     */
-    function append_output(cell, output) {
-        $(cell.output_area.element.get(0)).html(output);
-    }
-
-    /**
-     * Save cell outputs for future restore
-     *
-     * @param cell {CodeCell} - notebook cell
-     */
-    function save_cell_output_metadata(cell) {
-        if (!(cell.cell_type === 'code' && cell.metadata.require !== undefined)) return;
-
-        let html_output = get_cell_output(cell);
-
-        cell.metadata.display = {
-            [MIME_HTML]: html_output,
-            [MIME_TEXT]: default_output,
-        };
-    }
-
-    /**
-     * Save cell execution metadata
-     *
-     * @param cell {CodeCell} - notebook cell
-     * @param data {CodeCell} - execution data
-     */
-    function save_cell_execution_metadata(cell, data) {
-        let required = cell.metadata.require;
-        if (!(cell.cell_type === 'code' && required !== undefined)) return;
-
-        cell.metadata.execute = {
-            [MIME_JAVASCRIPT]: data
-        }
-    }
-
-    function save_cell_metadata() {
-        let cells = Jupyter.notebook.get_cells();
-
-        return new Promise((resolve) => {
-            cells.forEach((c) => {
-                save_cell_output_metadata(c);
-                save_cell_execution_metadata(c);
-            });
-
-            resolve();
-        });
+        return [execute, element];
     }
 
     /**
@@ -320,7 +263,6 @@ define([
 
                     // get running cell or fall back to current cell
                     let cell = Jupyter.notebook.get_running_cells()[0];
-                    console.debug('cell:', cell);
 
                     if (!cell) {
                         // fallback, may select wrong cell but better than die out
@@ -333,28 +275,12 @@ define([
                         }
                     }
 
-                    console.debug('cell:', cell);
-                    let output_area = cell.output_area;
+                    const d = msg.content.data;
 
-                    let output = output_area.create_output_area();
-                    let toinsert = output_area.create_output_subarea(
-                        {}, "output_javascript rendered_html", MIME_JAVASCRIPT);
-
-                    output_area.keyboard_manager.register_events(toinsert);
-                    output_area.element.append(output);
-
-                    output.append(toinsert);
-
-                    let context = {
-                        cell: cell,
-                        element: toinsert,
-                        output_area: output_area
-                    };
-
-                    output_area.outputs.push(default_output);
-
-                    return await execute_with_requirements(msg.content.data, context)
-                        .then((values) => console.debug(values))
+                    return await execute_script.call(cell, d.script, d.require, d.parameters)
+                        .then(([func, output]) => {
+                            display.append_display_data(cell, func, output);
+                        })
                         .catch(console.error);
                 });
 
@@ -386,8 +312,6 @@ define([
 
         get_cell_requirements     : get_cell_requirements,
         set_cell_requirements     : set_cell_requirements,
-
-        save_cell_metadata        : save_cell_metadata,
 
         get_notebook_config       : get_notebook_config,
         set_notebook_config       : set_notebook_config,
