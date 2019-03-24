@@ -50,6 +50,26 @@ define([
         return cells.filter((c) => c.running).map((c, i) => i);
     };
 
+
+    /**
+     * Get currently executed cell
+     *
+     * @returns {CodeCell}
+     */
+    function get_executed_cell() {
+        let cell = Jupyter.notebook.get_running_cells()[0];
+
+        if (!cell) {
+            // fallback, may select wrong cell but better than die out
+            let selected_cell = Jupyter.notebook.get_selected_cell();
+            let prev_cell = Jupyter.notebook.get_prev_cell(selected_cell);
+
+            cell = selected_cell.cell_type === 'code' ? selected_cell : prev_cell;
+        }
+
+        return cell;
+    }
+
     /**
      * Get notebook requireJS config
      *
@@ -93,10 +113,6 @@ define([
      * @returns {Array}
      */
     function check_requirements(required) {
-        let cell = Jupyter.notebook.get_selected_cell();
-
-        if (required.length > 0) events.trigger('require.JupyterRequire', {cell: cell, require: required});
-
         console.debug("Checking required libraries: ", required);
 
         let defined = [];  // array of promises
@@ -193,6 +209,8 @@ define([
      */
     function execute_with_requirements(func, required, cell) {
         return new Promise(async (resolve, reject) => {
+            events.trigger('require.JupyterRequire', {cell: cell, require: required});
+
             let output_area = cell.output_area;
 
             let output = output_area.create_output_area();
@@ -262,21 +280,9 @@ define([
                     console.debug('Comm: ', comm, 'message: ', msg);
 
                     // get running cell or fall back to current cell
-                    let cell = Jupyter.notebook.get_running_cells()[0];
-
-                    if (!cell) {
-                        // fallback, may select wrong cell but better than die out
-                        let selected_cell = Jupyter.notebook.get_selected_cell();
-
-                        if (selected_cell.cell_type === 'code') {
-                            cell = selected_cell;
-                        } else {
-                            cell = Jupyter.notebook.get_prev_cell(selected_cell);
-                        }
-                    }
+                    let cell = get_executed_cell();
 
                     const d = msg.content.data;
-
                     return await execute_script.call(cell, d.script, d.require, d.parameters)
                         .then(([func, output]) => {
                             display.append_display_data(cell, func, output);

@@ -48,26 +48,18 @@ define(function(require) {
      * Initialize requirements in existing cells
      *
      */
-    async function init_existing_cells() {
+    function init_existing_cells() {
         let cells = Jupyter.notebook.get_cells();
 
-        cells.forEach((cell) => {
+        cells.forEach(async (cell) => {
             let required = core.get_cell_requirements(cell);
-
+            
             if (required.length > 0) {
-                console.debug("Checking libraries required by cell: ", cell, required);
-                required.forEach(async lib => {
-                    let is_defined = require.defined(lib);
-                    console.debug(`Checking library: ${lib}`, is_defined ? '✓' : 'x');
-
-                    if (is_defined) {
-                        // now update the output with already loaded libraries
-                        // core.restore_output(cell);
-                    }
-                });
+                Promise.all(core.check_requirements(required))
+                    .then((libs) => {
+                        console.debug("Success:", libs);
+                    }).catch((r) => new Error(r));
             }
-
-            cell.running = false;
         });
     }
 
