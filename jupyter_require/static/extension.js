@@ -34,23 +34,7 @@ define(function(require) {
     function freeze_cells_outputs() {
         let cells = Jupyter.notebook.get_cells();
 
-        return Promise.all(cells.map((cell) => display.freeze_display_data(cell)))
-            .then(() => console.debug("Successfully frozen cell outputs."))
-            .catch(console.error);
-    }
-
-    function store_cells_outputs() {
-        let cells = Jupyter.notebook.get_cells();
-
-        return Promise.all(cells.map((cell) => display.store_cell_outputs(cell)))
-            .then(() => console.debug("Successfully frozen cell outputs."))
-            .catch(console.error);
-    }
-
-    function restore_cells_outputs() {
-        let cells = Jupyter.notebook.get_cells();
-
-        return Promise.all(cells.map((cell) => display.restore_cell_outputs(cell)))
+        return Promise.all(cells.map((cell) => display.freeze_cell_outputs(cell)))
             .then(() => console.debug("Successfully frozen cell outputs."))
             .catch(console.error);
     }
@@ -66,7 +50,13 @@ define(function(require) {
         events.on('execute.CodeCell', (e, d) => d.cell.running = true);
         events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
 
-        events.on('before_save.Notebook', store_cells_outputs);
+        events.on('output_added.OutputArea', (e, d) => {
+            if (d.output instanceof display.DisplayData || d.output.metadata.frozen === false) {
+                d.output.freeze_output();
+            }
+        });
+
+        events.on('before_save.Notebook', freeze_cells_outputs);
     }
 
 

@@ -37,6 +37,10 @@ def load_ipython_extension(ipython):
     """Load the IPython extension."""
     from .magic import RequireJSMagic
 
+    # re-initialize comms on extension (or page) reload
+    # noinspection PyProtectedMember
+    require._initialize_comms()  # pylint: disable=protected-access
+
     # magic: %require
     ipython.register_magics(RequireJSMagic)
 

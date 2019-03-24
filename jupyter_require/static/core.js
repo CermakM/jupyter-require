@@ -204,17 +204,15 @@ define([
      *
      * @param func {Function} - expression to execute
      * @param required {Array} - required libraries
-     * @param cell {CodeCell} - current code cell
+     * @param output_area {OutputArea} - current code cell's output area
      * @returns {Promise<any>}
      */
-    function execute_with_requirements(func, required, cell) {
+    function execute_with_requirements(func, required, output_area) {
         return new Promise(async (resolve, reject) => {
-            events.trigger('require.JupyterRequire', {cell: cell, require: required});
-
-            let element = display.create_output_subarea(cell);
+            let element = display.create_output_subarea(output_area);
 
             requirejs(required, (...args) => {
-                func.apply(cell.output_area, [...args, element])
+                func.apply(output_area, [...args, element])
                     .then(() => {
                         resolve(element);
                     }).catch(reject);
@@ -224,7 +222,7 @@ define([
     }
 
     /**
-     * Wrap and Execute JS script in a cell context
+     * Wrap and Execute JS script in output_area context
      *
      * This function pauses execution of Jupyter kernel
      * until required libraries are loaded
@@ -239,6 +237,7 @@ define([
         params.push('element');
 
         let cell = this;  // current CodeCell
+        let output_area = cell.output_area;
 
         let wrapped = new AsyncFunction(...params, script.toString());
         let execute = _.partial(execute_with_requirements, wrapped, required);
@@ -246,9 +245,8 @@ define([
         let element = null;
         await Promise.all(check_requirements(required))
             .then(async () => {
-                console.debug("Executing user script in context: ", cell);
-                element = await execute(cell);
-                console.debug("Success.");
+                element = await execute(output_area);
+                events.trigger('require.JupyterRequire', {cell: cell, require: required});
             })
             .catch(handle_error);
 
@@ -262,8 +260,7 @@ define([
     function register_targets() {
         let comm_manager = Jupyter.notebook.kernel.comm_manager;
 
-        let target = 'execute';
-        comm_manager.register_target(target,
+        comm_manager.register_target('execute',
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
 
@@ -276,17 +273,16 @@ define([
                     const d = msg.content.data;
                     return await execute_script.call(cell, d.script, d.require, d.parameters)
                         .then(([func, output]) => {
-                            display.append_display_data(func, output, cell);
+                            display.append_display_data(func, output, cell.output_area);
                         })
                         .catch(console.error);
                 });
 
-                console.debug(`Comm '${target}' registered.`);
+                console.debug(`Comm 'execute' registered.`);
             }
         );
 
-        target = 'config';
-        comm_manager.register_target(target,
+        comm_manager.register_target('config',
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
 
@@ -297,7 +293,7 @@ define([
                         .catch(console.error);
                 });
 
-                console.debug(`Comm '${target}' registered.`);
+                console.debug(`Comm 'config' registered.`);
             }
         );
 

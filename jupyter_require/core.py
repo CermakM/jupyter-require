@@ -66,10 +66,7 @@ class RequireJS(object):
         self._execution_comm = None
 
         if self._is_notebook:
-            self._config_comm = create_comm(
-                target='config', callback=self._store_callback)
-            self._execution_comm = create_comm(
-                target='execute', callback=self._store_callback)
+            self._initialize_comms()
 
         # update with default required libraries
         self.config(required or {}, shim or {})
@@ -159,7 +156,12 @@ class RequireJS(object):
 
         require.__doc__ = RequireJS.__call__.__doc__
 
-        return require
+    def _initialize_comms(self):
+        """Initialize Python-JavaScript comms."""
+        self._config_comm = create_comm(
+            target='config', callback=self._store_callback)
+        self._execution_comm = create_comm(
+            target='execute', callback=self._store_callback)
 
     def _store_callback(self, msg):
         """Store callback from comm."""

@@ -49,7 +49,9 @@ define(['underscore'], function(_) {
             display: {
                 [MIME_JAVASCRIPT]: js,
                 [MIME_HTML]: html,
-            }
+            },
+            execute: _.isFunction(js),
+            frozen: false
         };
 
         this.output_type = 'display_data';
@@ -57,31 +59,28 @@ define(['underscore'], function(_) {
     }
 
     /**
-     * Object storing frozen state of DisplayData
+     * Freeze the output and store it in the data
      *
-     * This object can be serialized into JSON and persists
+     * The data object can be then be serialized into JSON and persists
      * after notebook is saved.
      *
      * @returns {Object}
      */
-    function FrozenOutput(display_data) {
-        this.data = {
-            [MIME_TEXT]: "<JupyterRequire.display.FrozenOutput object>",
+    DisplayData.prototype.freeze_output = function() {
+        const elt = this.metadata.display[MIME_HTML];
+        let frozen_output = {
+            [MIME_TEXT]: "<JupyterRequire.display.DisplayData object>",
         };
 
-        if (_.has(display_data, MIME_HTML)) {
-            this.data[MIME_HTML] = $(display_data[MIME_HTML])
-                .addClass('frozen_output')
-                .html();
+        if (elt !== undefined) {
+            frozen_output[MIME_HTML] = $(elt).addClass('frozen_output').html();
         }
-        this.metadata = {};
 
-        this.output_type = 'display_data';
-        this.transient = undefined;
-    }
+        this.data = frozen_output;
+        this.metadata.frozen = true;
+    };
 
-    let create_output_subarea = function(cell, toinsert) {
-        let output_area = cell.output_area;
+    let create_output_subarea = function(output_area, toinsert) {
         let output = output_area.create_output_area();
 
         if (toinsert === undefined) {
@@ -97,86 +96,40 @@ define(['underscore'], function(_) {
         return toinsert;
     };
 
-    let freeze_display_data = function(cell) {
-        return new Promise((resolve) => {
-            if (cell.cell_type !== 'code') resolve();
-
-            let outputs = cell.output_area.outputs;
-            outputs.forEach((output) => {
-                let display_data = output.metadata.display;
-                if (display_data !== undefined)
-                    output.metadata.frozen_output = new FrozenOutput(display_data);
-            });
-
-            resolve();
-        });
-    };
-
-    let store_cell_outputs = function(cell) {
-        return new Promise((resolve, reject) => {
-            if (cell.cell_type !== 'code') resolve();
-
-            return freeze_display_data(cell)
-                .then(() => {
-                    let outputs = cell.output_area.outputs;
-
-                    outputs.forEach((output, idx) => {
-                        let frozen_output = output.metadata.frozen_output;
-
-                        if (frozen_output !== undefined)
-                            outputs[idx] = frozen_output;
-                    });
-
-                    resolve();
-                })
-                .catch(reject);
-        });
-    };
-
-    let append_javascript = function(js, cell) {
-        return Promise.resolve(js(cell));
-    };
-
-    let append_html = function(html, cell) {
-        return Promise.resolve(create_output_subarea(cell, html));
-    };
-
-    let append_display_data = function(js, html, cell){
-        cell.output_area.outputs.push(new DisplayData(js, html));
-    };
-
-    let append_map = {
-        [MIME_JAVASCRIPT] : append_javascript,
-        [MIME_HTML]: append_html,
-    };
-
-    let restore_cell_outputs = function(cell) {
+    let freeze_cell_outputs = function(cell) {
         return new Promise((resolve) => {
             if (cell.cell_type !== 'code') resolve();
 
             let outputs = cell.output_area.outputs;
 
-            cell.output_area.clear_output();
-
             outputs.forEach((output) => {
-                let display_data = output.metadata.display;
-                if (display_data !== undefined) {
-                    let format_error = (err, mt) => {
-                        return `Caught error for mime type '${mt}': ${err}`;
-                    };
-
-                    for (let [mime_type, t] of _.pairs(display_data)) {
-                        let append = append_map[mime_type];
-                        try {
-                         append(t, cell); break;
-                        } catch(err) { console.debug(format_error(err, mime_type)); }
-                    }
-                } else cell.output_area.append_output(output);
+                if (output instanceof DisplayData)
+                    output.freeze_output();
             });
 
             resolve();
+        })
+    };
+
+    let append_javascript = function(js, output_area) {
+        return Promise.resolve(js(output_area));
+    };
+
+    let append_html = function(html, output_area) {
+        return Promise.resolve(create_output_subarea(output_area, html));
+    };
+
+    let append_display_data = function(js, html, output_area){
+        let output = new DisplayData(js, html);
+
+        output_area.outputs.push(output);
+
+        output_area.events.trigger('output_added.OutputArea', {
+            output_area: output_area,
+            output: output
         });
     };
+
 
     return {
         DisplayData           : DisplayData,
@@ -189,9 +142,6 @@ define(['underscore'], function(_) {
         append_html           : append_html,
         append_javascript     : append_javascript,
 
-        freeze_display_data   : freeze_display_data,
-
-        store_cell_outputs    : store_cell_outputs,
-        restore_cell_outputs  : restore_cell_outputs,
+        freeze_cell_outputs   : freeze_cell_outputs,
     }
 });
