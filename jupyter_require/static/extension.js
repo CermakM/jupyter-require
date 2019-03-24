@@ -24,10 +24,36 @@
 define(function(require) {
     'use strict';
 
-    let core    = require('./core');
     let events  = require('base/js/events');
     let Jupyter = require('base/js/namespace');
 
+    let core    = require('./core');
+    let display = require('./display');
+
+
+    function freeze_cells_outputs() {
+        let cells = Jupyter.notebook.get_cells();
+
+        return Promise.all(cells.map((cell) => display.freeze_display_data(cell)))
+            .then(() => console.debug("Successfully frozen cell outputs."))
+            .catch(console.error);
+    }
+
+    function store_cells_outputs() {
+        let cells = Jupyter.notebook.get_cells();
+
+        return Promise.all(cells.map((cell) => display.store_cell_outputs(cell)))
+            .then(() => console.debug("Successfully frozen cell outputs."))
+            .catch(console.error);
+    }
+
+    function restore_cells_outputs() {
+        let cells = Jupyter.notebook.get_cells();
+
+        return Promise.all(cells.map((cell) => display.restore_cell_outputs(cell)))
+            .then(() => console.debug("Successfully frozen cell outputs."))
+            .catch(console.error);
+    }
 
     /**
      * Register JupyterRequire event handlers
@@ -40,7 +66,7 @@ define(function(require) {
         events.on('execute.CodeCell', (e, d) => d.cell.running = true);
         events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
 
-        // events.on('before_save.Notebook', () => {});
+        events.on('before_save.Notebook', store_cells_outputs);
     }
 
 
@@ -53,7 +79,7 @@ define(function(require) {
 
         cells.forEach(async (cell) => {
             let required = core.get_cell_requirements(cell);
-            
+
             if (required.length > 0) {
                 Promise.all(core.check_requirements(required))
                     .then((libs) => {

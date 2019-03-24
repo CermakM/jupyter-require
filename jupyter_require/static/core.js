@@ -211,21 +211,12 @@ define([
         return new Promise(async (resolve, reject) => {
             events.trigger('require.JupyterRequire', {cell: cell, require: required});
 
-            let output_area = cell.output_area;
-
-            let output = output_area.create_output_area();
-            let toinsert = output_area.create_output_subarea(
-                {}, "output_javascript rendered_html", display.mime_types.MIME_JAVASCRIPT);
-
-            output_area.keyboard_manager.register_events(toinsert);
-            output_area.element.append(output);
-
-            output.append(toinsert);
+            let element = display.create_output_subarea(cell);
 
             requirejs(required, (...args) => {
-                func.apply(output_area, [...args, toinsert])
+                func.apply(cell.output_area, [...args, element])
                     .then(() => {
-                        resolve(toinsert);
+                        resolve(element);
                     }).catch(reject);
             });
             setTimeout(reject, 5000, new Error("Script execution timeout."));
@@ -285,7 +276,7 @@ define([
                     const d = msg.content.data;
                     return await execute_script.call(cell, d.script, d.require, d.parameters)
                         .then(([func, output]) => {
-                            display.append_display_data(cell, func, output);
+                            display.append_display_data(func, output, cell);
                         })
                         .catch(console.error);
                 });
@@ -323,6 +314,7 @@ define([
         set_notebook_config       : set_notebook_config,
 
         check_requirements        : check_requirements,
+        execute_script            : execute_script,
         execute_with_requirements : execute_with_requirements,
 
         load_required_libraries   : load_required_libraries,
