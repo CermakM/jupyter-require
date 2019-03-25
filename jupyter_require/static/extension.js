@@ -32,7 +32,7 @@ define(function(require) {
     let display = require('./display');
 
 
-    function freeze_cells_outputs() {
+    function freeze_cells() {
         let cells = Jupyter.notebook.get_cells();
 
         return Promise.all(cells.map((cell) => display.freeze_cell_outputs(cell)))
@@ -40,16 +40,33 @@ define(function(require) {
             .catch(console.error);
     }
 
-    function finalize_cells_outputs() {
+    /**
+     * Finalize all cell outputs
+     *
+     * This function should not make any kernel related calls
+     * to prevent race conditions with kernel event handlers
+     * if called when kernel is interrupted or dead.
+     *
+     * @param d - data passed to the trigger
+     * @returns {Promise<void | never>}
+     */
+    function finalize_cells() {
         let cells = Jupyter.notebook.get_cells();
 
         return Promise.all(cells.map((cell) => display.finalize_cell_outputs(cell)))
-            .then(() => console.debug("Successfully frozen cell outputs."))
+            .then(() => {
+                Jupyter.notebook.metadata.finalized = {
+                    trusted   : Jupyter.notebook.trusted,
+                    timestamp : _.now(),
+                };
+            })
+            .then(() => Jupyter.notebook.save_notebook())
+            .then(() => console.debug("Successfully finalized cell outputs."))
             .catch(console.error);
     }
 
     /**
-     * Register JupyterRequire event handlers
+     * Register event handlers
      *
      */
     function register_events() {
@@ -61,6 +78,8 @@ define(function(require) {
 
         events.on('output_added.OutputArea', (e, d) => {
             let display_data = d.output;
+            if (display_data.output_type === 'error') return;
+
             if (display_data instanceof display.DisplayData || display_data.metadata.frozen === false) {
                 display_data.freeze_output();
             } else {
@@ -71,25 +90,30 @@ define(function(require) {
             }
         });
 
-        events.on('before_save.Notebook', freeze_cells_outputs);
+        events.on('before_save.Notebook', freeze_cells);
 
-        events.on('finalize.JupyterRequire', async function (e, d) {
-            // finalize all cells before shutdown
-            let timestamp = d.timestamp;
+        /* Finalization events
 
-            Jupyter.notebook.metadata.finalized = {
-                trusted: Jupyter.notebook.trusted,
-                timestamp: timestamp,
-            };
+           This is a bit hackish, but it covers probable scenarios
+           in which finalization is needed, like app close/reload and
+           session closed and halt.
+        */
+        events.on({
+            'kernel_dead.Session': async function () {
+                console.debug("Session is dead. Finalizing outputs...");
+                await finalize_cells();
+            },
 
-            // this function should not make any kernel related calls
-            // to prevent race conditions with Jupyter event handlers
-            await finalize_cells_outputs();
+            'kernel_killed.Session': async function () {
+                console.debug("Session closed. Finalizing outputs...");
+                await finalize_cells();
+            },
 
-            // Chrome requires returnValue to be set
-            e.returnValue = true;
+            'kernel_dead.Kernel': async function () {
+                console.debug("Kernel is dead. Finalizing outputs...");
+                await finalize_cells();
+            },
         });
-
     }
 
 
@@ -99,8 +123,24 @@ define(function(require) {
      */
     function init_existing_cells() {
         let cells = Jupyter.notebook.get_cells();
+        let code_cells = cells.filter(
+            (c) => c.cell_type === 'code'
+        );
 
-        cells.forEach(async (cell) => {
+        code_cells.forEach(async (cell) => {
+            // mark frozen outputs
+
+            let outputs = cell.output_area.outputs;
+            outputs.forEach((output) => {
+                if (output.metadata.frozen === true) {
+                    let element = $(output.element).find('.output_subarea');
+
+                    // convenience for user
+                    element.addClass('output_frozen');
+                }
+            });
+
+            // check requirements
             let required = core.get_cell_requirements(cell);
 
             if (required.length > 0) {
@@ -109,6 +149,7 @@ define(function(require) {
                         console.debug("Success:", libs);
                     }).catch((r) => new Error(r));
             }
+
         });
     }
 

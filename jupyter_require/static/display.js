@@ -65,9 +65,13 @@ define(['underscore'], function(_) {
     DisplayData.prototype.freeze_output = function() {
         let frozen_output = {};
 
-        let elt = this.metadata.display.element;
+        let display = this.metadata.display;
+        if (display === undefined)
+            return;
+
+        let elt = display.element;
         if (_.isElement(elt.get(0))) {
-            let html = $(elt).addClass('frozen_output').html();
+            let html = $(elt).addClass('output_frozen').html();
             if (html.length > 0)
                 frozen_output = {
                     [MIME_HTML]: html,

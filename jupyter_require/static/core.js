@@ -127,12 +127,16 @@ define([
                     clearTimeout(tid);
                     clearInterval(iid);
 
-                    resolve(`Library '${lib}' has been linked.`);
+                    resolve({
+                        [lib]: "Success."
+                    });
                 };
                 let errback = function() {
                     clearInterval(iid);
 
-                    reject(`Library '${lib}' could not be loaded.`);
+                    reject({
+                        [lib]: `Error: Library '${lib}' is not loaded.`
+                    });
                 };
 
                 tid = setTimeout(errback, 5000);
@@ -243,8 +247,9 @@ define([
         let execute = _.partial(execute_with_requirements, wrapped, required);
 
         await Promise.all(check_requirements(required))
-            .then(async () => {
-                display.append_javascript(execute, output_area).then(
+            .then(async (r) => {
+                console.debug(r);
+                await display.append_javascript(execute, output_area).then(
                     (r) => console.debug("Output appended.", r)
                 );
                 events.trigger('require.JupyterRequire', {cell: cell, require: required});
@@ -292,7 +297,7 @@ define([
             }
         );
 
-        comm_manager.register_target('finalize',
+        comm_manager.register_target('atexit',
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
 
@@ -300,7 +305,7 @@ define([
                     events.trigger('finalize.JupyterRequire', {timestamp: _.now()});
                 });
 
-                console.debug(`Comm 'config' registered.`);
+                console.debug(`Comm 'atexit' registered.`);
             }
         );
     }
