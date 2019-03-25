@@ -165,7 +165,7 @@ define([
             traceback: traceback,
             output_type: 'error'
         };
-        let cell = Jupyter.notebook.get_selected_cell();
+        let cell = get_executed_cell();
 
         // append stack trace to the cell output element
         cell.output_area.append_output(output_error);
@@ -201,6 +201,42 @@ define([
                 console.log('Success: ', values);
                 events.trigger('config.JupyterRequire', {config: config});
             }).catch(handle_error);
+    }
+
+    /**
+     * Execute the function as safe script
+     *
+     * Safe scripts are executed on cell creation
+     * and are therefore not allowed to have any requirements.
+     * Scripts executed with this method also persist through notebook
+     * reloads and are automatically loaded on app initialization.
+
+     * This function is convenient for automatic loading and linking
+     * of custom CSS and JS files.
+     *
+     * @param script {Function} - expression to execute
+     * @param output_area {OutputArea} - current code cell's output area
+     * @returns {Promise<any>}
+     */
+    function safe_execute(script, output_area) {
+        return new Promise ((resolve, reject) => {
+            const json = new display.DisplayData(script);
+
+            let n_outputs = output_area.outputs.length;
+
+            // safe script can use the native evaluation
+            output_area.append_output(json);
+
+            // a little hack since OutputArea.prototype.append_output
+            // does not return promise
+            let t = setInterval(() => {
+                if (output_area.outputs.length > n_outputs) resolve();
+            }, 50);
+
+            setTimeout(() => {
+                clearInterval(t); reject(new Error("Script execution timeout."));
+            }, 5000);
+        });
     }
 
     /**
@@ -282,6 +318,30 @@ define([
             }
         );
 
+        comm_manager.register_target('safe_execute',
+            (comm, msg) => {
+                console.debug('Comm: ', comm, 'initial message: ', msg);
+
+                comm.on_msg(async (msg) => {
+                    console.debug('Comm: ', comm, 'message: ', msg);
+
+                    // get running cell or fall back to current cell
+                    let cell = get_executed_cell();
+                    let output_area = cell.output_area;
+
+                    const script = msg.content.data.script;
+
+                    console.debug("Executing safe script: ", script);
+
+                    return await safe_execute(script, output_area)
+                        .then(() => console.debug("Success."))
+                        .catch(handle_error);
+                });
+
+                console.debug(`Comm 'safe_execute' registered.`);
+            }
+        );
+
         comm_manager.register_target('config',
             (comm, msg) => {
                 console.debug('Comm: ', comm, 'initial message: ', msg);
@@ -294,18 +354,6 @@ define([
                 });
 
                 console.debug(`Comm 'config' registered.`);
-            }
-        );
-
-        comm_manager.register_target('atexit',
-            (comm, msg) => {
-                console.debug('Comm: ', comm, 'initial message: ', msg);
-
-                comm.on_msg(async () => {
-                    events.trigger('finalize.JupyterRequire', {timestamp: _.now()});
-                });
-
-                console.debug(`Comm 'atexit' registered.`);
             }
         );
     }

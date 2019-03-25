@@ -27,6 +27,7 @@
 from IPython import get_ipython
 
 from .core import execute_with_requirements
+from .core import safe_execute
 
 
 Jupyter = get_ipython()
@@ -43,7 +44,7 @@ def enable_nbextension(nbextension):
     });
     """
 
-    return execute_with_requirements(script, required=[], nbextension=nbextension)
+    return safe_execute(script, nbextension=nbextension)
 
 
 def disable_nbextension(nbextension):
@@ -56,7 +57,7 @@ def disable_nbextension(nbextension):
     });
     """
 
-    return execute_with_requirements(script, required=[], nbextension=nbextension)
+    return safe_execute(script, nbextension=nbextension)
 
 
 def load_nbextension(nbextension, endpoint: str = 'extension', enable=True):
@@ -91,7 +92,7 @@ def clear_cell_metadata(index: int = None):
     });
     """
 
-    return execute_with_requirements(script, required=[], index=index)
+    return safe_execute(script, index=index)
 
 
 def clear_notebook_metadata():
@@ -102,4 +103,4 @@ def clear_notebook_metadata():
     if (nb.metadata.hasOwnProperty('require')) delete nb.metadata.require;
     """
 
-    return execute_with_requirements(script, required=[])
+    return safe_execute(script)

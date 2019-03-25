@@ -64,6 +64,7 @@ class RequireJS(object):
         # comms
         self._config_comm = None
         self._execution_comm = None
+        self._safe_execution_comm = None
 
         if self._is_notebook:
             self._initialize_comms()
@@ -162,6 +163,8 @@ class RequireJS(object):
             target='config', callback=self._store_callback)
         self._execution_comm = create_comm(
             target='execute', callback=self._store_callback)
+        self._safe_execution_comm = create_comm(
+            target='safe_execute', callback=self._store_callback)
 
     def _store_callback(self, msg):
         """Store callback from comm."""
@@ -245,7 +248,7 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
 def execute(script: str, **kwargs):
     """Execute JS script.
 
-    This functions implicitly loads libraries defined in requireJS config.
+    This function implicitly loads libraries defined in requireJS config.
     """
     required = []
     try:
@@ -254,6 +257,23 @@ def execute(script: str, **kwargs):
         pass
 
     return execute_with_requirements(script, required=required, **kwargs)
+
+
+def safe_execute(script: str, **kwargs):
+    """Execute JS script and treat it as safe script.
+
+    Safe scripts are executed on cell creation
+    and are therefore not allowed to have any requirements.
+    Scripts executed with this method also persist through notebook
+    reloads and are automatically loaded on app initialization.
+
+    This function is convenient for automatic loading and linking
+    of custom CSS and JS files.
+    """
+    script = JSTemplate(script).safe_substitute(**kwargs)
+
+    # noinspection PyProtectedAccess
+    return require._safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
 
 
 def link_css(stylesheet: str, attrs: dict = None):
@@ -279,10 +299,7 @@ def link_css(stylesheet: str, attrs: dict = None):
         document.head.appendChild(link);
     """
 
-    parsed = JSTemplate(script).safe_substitute(
-        href=stylesheet, attrs=attrs)
-
-    return execute_with_requirements(parsed, required=[])
+    return safe_execute(script, href=stylesheet, attrs=attrs)
 
 
 def link_js(lib: str):
@@ -297,10 +314,7 @@ def link_js(lib: str):
         document.head.appendChild(script);
     """
 
-    parsed = JSTemplate(script).safe_substitute(
-        lib=lib)
-
-    return execute_with_requirements(parsed, required=[])
+    return safe_execute(script, lib=lib)
 
 
 def load_css(style: str, attrs: dict = None):
@@ -327,10 +341,7 @@ def load_css(style: str, attrs: dict = None):
         if (!elem_exists) document.head.appendChild(e);
     """
 
-    parsed = JSTemplate(script).safe_substitute(
-        style=style, attrs=attrs)
-
-    return execute_with_requirements(parsed, required=[])
+    return safe_execute(script, style=style, attrs=attrs)
 
 
 def load_js(script: str, attrs: dict = None):
@@ -362,10 +373,7 @@ def load_js(script: str, attrs: dict = None):
         if (!elem_exists) document.head.appendChild(e);
     """
 
-    parsed = JSTemplate(script).safe_substitute(
-        script=user_script, attrs=attrs)
-
-    return execute_with_requirements(parsed, required=[])
+    return safe_execute(script, script=user_script, attrs=attrs)
 
 
 require = RequireJS()

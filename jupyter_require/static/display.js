@@ -37,22 +37,35 @@ define(['underscore'], function(_) {
     /**
      * Object storing output display data and metadata
      *
-     * @param js {Function} - script to be executed in cell context
+     * @param js {Function} - function to be executed in cell context or safe script
      * @param html {Element} - DOM element to be appended
      * @returns {Object}
      */
     function DisplayData(js, html) {
         this.data = {};
-        this.metadata = {
-            display: {
-                element: html,
-            },
-            execute: js,
-            frozen: false
-        };
-
+        this.metadata = {};
         this.output_type = 'display_data';
-        this.transient = undefined;
+
+        if (_.isString(js)) {
+            // treated as safe script
+            this.data[MIME_JAVASCRIPT] = js;
+            this.data[MIME_TEXT] = "<JupyterRequire.display.SafeScript object>";
+
+            this.metadata.finalized = true;
+
+        } else {
+
+            this.metadata.display = {
+                element: html,
+            };
+            this.metadata.execute = js;
+
+            this.metadata.finalized = false;
+
+            this.metadata.frozen = false;
+            this.metadata.frozen_output = undefined;
+
+        }
     }
 
     /**
@@ -66,7 +79,7 @@ define(['underscore'], function(_) {
         let frozen_output = {};
 
         let display = this.metadata.display;
-        if (display === undefined)
+        if (display === undefined || this.metadata.finalized)
             return;
 
         let elt = display.element;
@@ -94,7 +107,9 @@ define(['underscore'], function(_) {
      *
      */
     DisplayData.prototype.finalize_output = function() {
-        if (this.metadata.frozen === true)
+        if (this.metadata.finalized) return;
+
+        if (this.metadata.frozen !== true)
             this.freeze_output();
 
         this.data = this.metadata.frozen_output;

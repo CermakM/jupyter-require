@@ -78,7 +78,7 @@ define(function(require) {
 
         events.on('output_added.OutputArea', (e, d) => {
             let display_data = d.output;
-            if (display_data.output_type === 'error') return;
+            if (display_data.output_type !== 'display_data') return;
 
             if (display_data instanceof display.DisplayData || display_data.metadata.frozen === false) {
                 display_data.freeze_output();
@@ -124,13 +124,13 @@ define(function(require) {
     function init_existing_cells() {
         let cells = Jupyter.notebook.get_cells();
         let code_cells = cells.filter(
-            (c) => c.cell_type === 'code'
+            (c) => c.cell_type === 'code' && c.output_type === 'display_data'
         );
 
         code_cells.forEach(async (cell) => {
             // mark frozen outputs
-
             let outputs = cell.output_area.outputs;
+
             outputs.forEach((output) => {
                 if (output.metadata.frozen === true) {
                     let element = $(output.element).find('.output_subarea');
