@@ -24,6 +24,7 @@
 define(function(require) {
     'use strict';
 
+    let _       = require('underscore');
     let events  = require('base/js/events');
     let Jupyter = require('base/js/namespace');
 
@@ -35,6 +36,14 @@ define(function(require) {
         let cells = Jupyter.notebook.get_cells();
 
         return Promise.all(cells.map((cell) => display.freeze_cell_outputs(cell)))
+            .then(() => console.debug("Successfully frozen cell outputs."))
+            .catch(console.error);
+    }
+
+    function finalize_cells_outputs() {
+        let cells = Jupyter.notebook.get_cells();
+
+        return Promise.all(cells.map((cell) => display.finalize_cell_outputs(cell)))
             .then(() => console.debug("Successfully frozen cell outputs."))
             .catch(console.error);
     }
@@ -51,12 +60,36 @@ define(function(require) {
         events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
 
         events.on('output_added.OutputArea', (e, d) => {
-            if (d.output instanceof display.DisplayData || d.output.metadata.frozen === false) {
-                d.output.freeze_output();
+            let display_data = d.output;
+            if (display_data instanceof display.DisplayData || display_data.metadata.frozen === false) {
+                display_data.freeze_output();
+            } else {
+                if (_.isFunction(display_data.metadata.execute))
+                    display.append_javascript(display_data.metadata.execute, d.output_area).then(
+                        (r) => console.debug('Output appended: ', r)
+                    );
             }
         });
 
         events.on('before_save.Notebook', freeze_cells_outputs);
+
+        events.on('finalize.JupyterRequire', async function (e, d) {
+            // finalize all cells before shutdown
+            let timestamp = d.timestamp;
+
+            Jupyter.notebook.metadata.finalized = {
+                trusted: Jupyter.notebook.trusted,
+                timestamp: timestamp,
+            };
+
+            // this function should not make any kernel related calls
+            // to prevent race conditions with Jupyter event handlers
+            await finalize_cells_outputs();
+
+            // Chrome requires returnValue to be set
+            e.returnValue = true;
+        });
+
     }
 
 
@@ -87,10 +120,11 @@ define(function(require) {
     function load_ipython_extension() {
         return new Promise((resolve) => {
             require([
+                'underscore',
                 'base/js/namespace',
                 'base/js/events',
                 './core',
-            ], function (Jupyter, events, core) {
+            ], function (_, Jupyter, events, core) {
 
                 const config = core.get_notebook_config();
 

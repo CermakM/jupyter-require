@@ -242,15 +242,14 @@ define([
         let wrapped = new AsyncFunction(...params, script.toString());
         let execute = _.partial(execute_with_requirements, wrapped, required);
 
-        let element = null;
         await Promise.all(check_requirements(required))
             .then(async () => {
-                element = await execute(output_area);
+                display.append_javascript(execute, output_area).then(
+                    (r) => console.debug("Output appended.", r)
+                );
                 events.trigger('require.JupyterRequire', {cell: cell, require: required});
             })
             .catch(handle_error);
-
-        return [execute, element];
     }
 
     /**
@@ -271,11 +270,7 @@ define([
                     let cell = get_executed_cell();
 
                     const d = msg.content.data;
-                    return await execute_script.call(cell, d.script, d.require, d.parameters)
-                        .then(([func, output]) => {
-                            display.append_display_data(func, output, cell.output_area);
-                        })
-                        .catch(console.error);
+                    return await execute_script.call(cell, d.script, d.require, d.parameters);
                 });
 
                 console.debug(`Comm 'execute' registered.`);
@@ -297,6 +292,17 @@ define([
             }
         );
 
+        comm_manager.register_target('finalize',
+            (comm, msg) => {
+                console.debug('Comm: ', comm, 'initial message: ', msg);
+
+                comm.on_msg(async () => {
+                    events.trigger('finalize.JupyterRequire', {timestamp: _.now()});
+                });
+
+                console.debug(`Comm 'config' registered.`);
+            }
+        );
     }
 
 

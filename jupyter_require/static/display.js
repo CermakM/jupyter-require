@@ -42,15 +42,12 @@ define(['underscore'], function(_) {
      * @returns {Object}
      */
     function DisplayData(js, html) {
-        this.data = {
-            [MIME_TEXT]: "<JupyterRequire.display.DisplayData object>",
-        };
+        this.data = {};
         this.metadata = {
             display: {
-                [MIME_JAVASCRIPT]: js,
-                [MIME_HTML]: html,
+                element: html,
             },
-            execute: _.isFunction(js),
+            execute: js,
             frozen: false
         };
 
@@ -64,36 +61,92 @@ define(['underscore'], function(_) {
      * The data object can be then be serialized into JSON and persists
      * after notebook is saved.
      *
-     * @returns {Object}
      */
     DisplayData.prototype.freeze_output = function() {
-        const elt = this.metadata.display[MIME_HTML];
-        let frozen_output = {
-            [MIME_TEXT]: "<JupyterRequire.display.DisplayData object>",
-        };
+        let frozen_output = {};
 
-        if (elt !== undefined) {
-            frozen_output[MIME_HTML] = $(elt).addClass('frozen_output').html();
+        let elt = this.metadata.display.element;
+        if (_.isElement(elt.get(0))) {
+            let html = $(elt).addClass('frozen_output').html();
+            if (html.length > 0)
+                frozen_output = {
+                    [MIME_HTML]: html,
+                    [MIME_TEXT]: "<JupyterRequire.display.FrozenOutput object>",
+                }
         }
 
-        this.data = frozen_output;
         this.metadata.frozen = true;
+        this.metadata.frozen_output = frozen_output;
     };
 
-    let create_output_subarea = function(output_area, toinsert) {
-        let output = output_area.create_output_area();
+    /**
+     * Finalize the output
+     *
+     * The cell can no longer interact with JupyterRequire after
+     * the output has been finalized. This is both safety measure
+     * and convenience for storing the notebook.
+     *
+     * This function is triggered before notebook shutdown.
+     *
+     */
+    DisplayData.prototype.finalize_output = function() {
+        if (this.metadata.frozen === true)
+            this.freeze_output();
 
+        this.data = this.metadata.frozen_output;
+        this.metadata = {
+            frozen: true
+        };
+    };
+
+
+    let create_output_subarea = function(output_area, toinsert) {
         if (toinsert === undefined) {
             toinsert = output_area.create_output_subarea(
                 {}, "output_javascript rendered_html", MIME_JAVASCRIPT);
         }
 
         output_area.keyboard_manager.register_events(toinsert);
-        output_area.element.append(output);
 
-        output.append(toinsert);
+        // preset width for user's comfort
+        toinsert.width(output_area.element.width());
 
         return toinsert;
+    };
+
+    let append_javascript = async function(js, output_area) {
+        let toinsert = await js(output_area);
+        let display_data = append_display_data(js, toinsert, output_area);
+
+        return append_output(MIME_JAVASCRIPT, display_data, toinsert, output_area);
+    };
+
+    let append_output = function(type, display_data, toinsert, output_area) {
+        return new Promise((resolve) => {
+
+            let output = output_area.create_output_area();
+
+            let md = display_data.md;
+
+            output.append(toinsert);
+            output_area.element.append(output);
+            output_area.events.trigger('output_appended.OutputArea', [type, display_data, md, toinsert]);
+
+            resolve({output_area: output_area, output: display_data});
+        });
+    };
+
+    let append_display_data = function(js, html, output_area){
+        let display_data = new DisplayData(js, html);
+
+        output_area.outputs.push(display_data);
+
+        output_area.events.trigger('output_added.OutputArea', {
+            output_area: output_area,
+            output: display_data
+        });
+
+        return display_data;
     };
 
     let freeze_cell_outputs = function(cell) {
@@ -111,23 +164,24 @@ define(['underscore'], function(_) {
         })
     };
 
-    let append_javascript = function(js, output_area) {
-        return Promise.resolve(js(output_area));
-    };
+    let finalize_cell_outputs = function(cell) {
+        return new Promise((resolve) => {
+            if (cell.cell_type !== 'code') resolve();
 
-    let append_html = function(html, output_area) {
-        return Promise.resolve(create_output_subarea(output_area, html));
-    };
+            let outputs = cell.output_area.outputs;
 
-    let append_display_data = function(js, html, output_area){
-        let output = new DisplayData(js, html);
+            outputs.forEach((output) => {
+                if (output instanceof DisplayData) {
+                    output.freeze_output();
+                    output.finalize_output();
+                }
+            });
 
-        output_area.outputs.push(output);
+            // get rid of empty outputs, if any
+            cell.output_area.outputs = outputs.filter((d) => !_.isEmpty(d.data));
 
-        output_area.events.trigger('output_added.OutputArea', {
-            output_area: output_area,
-            output: output
-        });
+            resolve();
+        })
     };
 
 
@@ -139,9 +193,10 @@ define(['underscore'], function(_) {
         create_output_subarea : create_output_subarea,
 
         append_display_data   : append_display_data,
-        append_html           : append_html,
         append_javascript     : append_javascript,
+        append_output         : append_output,
 
         freeze_cell_outputs   : freeze_cell_outputs,
+        finalize_cell_outputs : finalize_cell_outputs,
     }
 });
