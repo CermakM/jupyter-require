@@ -23,6 +23,10 @@
 
 """Jupyter library and magic extension for managing linked JavaScript and CSS scripts and styles."""
 
+import logging
+
+import daiquiri
+import daiquiri.formatter
 
 from .__about__ import __version__
 
@@ -30,15 +34,63 @@ from .core import link_css
 from .core import link_js
 from .core import load_js
 from .core import load_css
+from .core import communicate
 from .core import require
+
+from .magic import RequireJSMagic
+
+from IPython import get_ipython
+
+daiquiri.setup(
+    level=logging.INFO,
+    outputs=[
+        daiquiri.output.File('.log', level=logging.DEBUG),
+        daiquiri.output.Stream(
+            formatter=daiquiri.formatter.ColorFormatter(
+                fmt="%(asctime)s [%(process)d] %(color)s%(levelname)-8.8s %(name)s:"
+                    "%(lineno)d: %(message)s%(color_stop)s"
+            )
+        ),
+    ],
+)
+
+logger = daiquiri.getLogger()
 
 
 def load_ipython_extension(ipython):
-    """Load the IPython extension."""
-    from .magic import RequireJSMagic
+    """Load the IPython Jupyter Require extension."""
+    logger.debug("Loading Jupyter Require extension.")
+
+    if not hasattr(ipython, 'kernel'):
+        logger.debug("No kernel found.")
+        return
+
+    register_comm_targets(ipython.kernel)
 
     # magic: %require
     ipython.register_magics(RequireJSMagic)
+
+
+def register_comm_targets(kernel=None):
+    """Register comm targets."""
+    if kernel is None:
+        kernel = get_ipython().kernel
+
+    logger.debug("Initializing comms.")
+    # noinspection PyProtectedMember
+    require._initialize_comms()  # pylint: disable=protected-access
+
+    logger.debug("Registering comm targets.")
+    kernel.comm_manager.register_target('communicate', communicate)
+
+
+def _handle_ipython():
+    """Register with the comm target at import."""
+    ipython = get_ipython()
+    if ipython is None:
+        return
+
+    load_ipython_extension(ipython)
 
 
 def _jupyter_nbextension_paths():
@@ -48,3 +100,6 @@ def _jupyter_nbextension_paths():
         'dest': 'jupyter-require',
         'require': 'jupyter-require/extension'
     }]
+
+
+_handle_ipython()

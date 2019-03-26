@@ -47,7 +47,6 @@ define(function(require) {
      * to prevent race conditions with kernel event handlers
      * if called when kernel is interrupted or dead.
      *
-     * @param d - data passed to the trigger
      * @returns {Promise<void | never>}
      */
     function finalize_cells() {
@@ -72,6 +71,18 @@ define(function(require) {
     function register_events() {
         events.on('config.JupyterRequire', (e, d) => core.set_notebook_config(d.config));
         events.on('require.JupyterRequire', (e, d) => core.set_cell_requirements(d.cell, d.require));
+
+        events.on({
+            'extension_loaded.JupyterRequire': (e, d) => {
+                console.debug("Extension loaded.");
+                core.communicate(e, d).catch(console.warn);
+            },
+
+            'comms_registered.JupyterRequire': (e, d) => {
+                console.debug("Comm targets registered.");
+                core.communicate(e, d).catch(console.warn);
+            }
+        });
 
         events.on('execute.CodeCell', (e, d) => d.cell.running = true);
         events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
@@ -115,7 +126,6 @@ define(function(require) {
             },
         });
     }
-
 
     /**
      * Initialize requirements in existing cells
@@ -169,7 +179,8 @@ define(function(require) {
 
                 const config = core.get_notebook_config();
 
-                core.register_targets();
+                core.register_targets().catch(console.error);
+
                 register_events();
 
                 if (config !== undefined) {
@@ -177,6 +188,9 @@ define(function(require) {
                         .then(() => init_existing_cells())
                         .catch(console.error);
                 }
+
+                events.trigger(
+                    'extension_loaded.JupyterRequire', {timestamp: _.now()});
 
                 resolve();
             });

@@ -32,6 +32,13 @@ define([
 
     let Notebook = notebook.Notebook;
 
+    let comm_manager = Jupyter.notebook.kernel.comm_manager;
+    let comm_id = 'communicate.JupyterRequire';
+    let comm = comm_manager.new_comm(
+        'communicate', null, null, {}, comm_id);
+
+    comm.on_msg((msg) => console.debug("Success.", msg));
+
     /**
      * Get running cells
      */
@@ -83,11 +90,6 @@ define([
      * @param config {Object} - requirejs configuration object
      */
     function set_notebook_config(config) { Jupyter.notebook.metadata.require = config; }
-
-    /**
-     * Asynchronous Function constructor
-     */
-    let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
 
     /**
@@ -204,6 +206,11 @@ define([
     }
 
     /**
+     * Asynchronous Function constructor
+     */
+    let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+
+    /**
      * Execute the function as safe script
      *
      * Safe scripts are executed on cell creation
@@ -218,7 +225,7 @@ define([
      * @param output_area {OutputArea} - current code cell's output area
      * @returns {Promise<any>}
      */
-    function safe_execute(script, output_area) {
+    let safe_execute = function(script, output_area) {
         return new Promise ((resolve, reject) => {
             const json = new display.DisplayData(script);
 
@@ -237,7 +244,7 @@ define([
                 clearInterval(t); reject(new Error("Script execution timeout."));
             }, 5000);
         });
-    }
+    };
 
     /**
      * Execute function with requirements in an output_area context
@@ -247,7 +254,7 @@ define([
      * @param output_area {OutputArea} - current code cell's output area
      * @returns {Promise<any>}
      */
-    function execute_with_requirements(func, required, output_area) {
+    let execute_with_requirements = function(func, required, output_area) {
         return new Promise(async (resolve, reject) => {
             let element = display.create_output_subarea(output_area);
 
@@ -259,7 +266,7 @@ define([
             });
             setTimeout(reject, 5000, new Error("Script execution timeout."));
         });
-    }
+    };
 
     /**
      * Wrap and Execute JS script in output_area context
@@ -269,7 +276,7 @@ define([
      *
      * @returns {Function} - wrapped execution partial function
      */
-    async function execute_script(script, required, params) {
+    let execute_script = async function(script, required, params) {
 
         // get rid of invalid characters
         params = params.map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""));
@@ -291,76 +298,100 @@ define([
                 events.trigger('require.JupyterRequire', {cell: cell, require: required});
             })
             .catch(handle_error);
-    }
+    };
 
     /**
      * Register comms for messages from Python kernel
      *
      */
-    function register_targets() {
-        let comm_manager = Jupyter.notebook.kernel.comm_manager;
+    let register_targets = function() {
+        return new Promise((resolve) => {
+            comm_manager.register_target('execute',
+                (comm, msg) => {
+                    console.debug('Comm: ', comm, 'initial message: ', msg);
 
-        comm_manager.register_target('execute',
-            (comm, msg) => {
-                console.debug('Comm: ', comm, 'initial message: ', msg);
+                    comm.on_msg(async (msg) => {
+                        console.debug('Comm: ', comm, 'message: ', msg);
 
-                comm.on_msg(async (msg) => {
-                    console.debug('Comm: ', comm, 'message: ', msg);
+                        // get running cell or fall back to current cell
+                        let cell = get_executed_cell();
 
-                    // get running cell or fall back to current cell
-                    let cell = get_executed_cell();
+                        const d = msg.content.data;
+                        return await execute_script.call(cell, d.script, d.require, d.parameters);
+                    });
 
-                    const d = msg.content.data;
-                    return await execute_script.call(cell, d.script, d.require, d.parameters);
-                });
+                    console.debug(`Comm 'execute' registered.`);
+                }
+            );
 
-                console.debug(`Comm 'execute' registered.`);
-            }
-        );
+            comm_manager.register_target('safe_execute',
+                (comm, msg) => {
+                    console.debug('Comm: ', comm, 'initial message: ', msg);
 
-        comm_manager.register_target('safe_execute',
-            (comm, msg) => {
-                console.debug('Comm: ', comm, 'initial message: ', msg);
+                    comm.on_msg(async (msg) => {
+                        console.debug('Comm: ', comm, 'message: ', msg);
 
-                comm.on_msg(async (msg) => {
-                    console.debug('Comm: ', comm, 'message: ', msg);
+                        // get running cell or fall back to current cell
+                        let cell = get_executed_cell();
+                        let output_area = cell.output_area;
 
-                    // get running cell or fall back to current cell
-                    let cell = get_executed_cell();
-                    let output_area = cell.output_area;
+                        const script = msg.content.data.script;
 
-                    const script = msg.content.data.script;
+                        console.debug("Executing safe script: ", script);
 
-                    console.debug("Executing safe script: ", script);
+                        return await safe_execute(script, output_area)
+                            .then(() => console.debug("Success."))
+                            .catch(handle_error);
+                    });
 
-                    return await safe_execute(script, output_area)
-                        .then(() => console.debug("Success."))
-                        .catch(handle_error);
-                });
+                    console.debug(`Comm 'safe_execute' registered.`);
+                }
+            );
 
-                console.debug(`Comm 'safe_execute' registered.`);
-            }
-        );
+            comm_manager.register_target('config',
+                (comm, msg) => {
+                    console.debug('Comm: ', comm, 'initial message: ', msg);
 
-        comm_manager.register_target('config',
-            (comm, msg) => {
-                console.debug('Comm: ', comm, 'initial message: ', msg);
+                    comm.on_msg(async (msg) => {
+                        console.debug('Comm: ', comm, 'message: ', msg);
+                        return await load_required_libraries(msg.content.data)
+                            .then((values) => console.debug(values))
+                            .catch(console.error);
+                    });
 
-                comm.on_msg(async (msg) => {
-                    console.debug('Comm: ', comm, 'message: ', msg);
-                    return await load_required_libraries(msg.content.data)
-                        .then((values) => console.debug(values))
-                        .catch(console.error);
-                });
+                    console.debug(`Comm 'config' registered.`);
+                }
+            );
 
-                console.debug(`Comm 'config' registered.`);
-            }
-        );
-    }
+            events.trigger(
+                'comms_registered.JupyterRequire', {timestamp: _.now()});
+
+            resolve();
+        });
+    };
+
+    /**
+     * Communicate events to Jupyter Require kernel
+     *
+     */
+    let communicate = function(evt, data) {
+        const event = _.pick(evt, 'data', 'namespace', 'timeStamp', 'type');
+        console.debug("Communication requested by event: ", event);
+
+        return new Promise((resolve) => {
+            console.debug("Sending event to kernel.", event, data);
+
+            comm.send({event: event, event_data: data});
+            resolve();  // TODO: resolve this promise on kernel response?
+        });
+    };
+
 
 
     return {
         AsyncFunction             : AsyncFunction,
+
+        communicate               : communicate,
 
         get_cell_requirements     : get_cell_requirements,
         set_cell_requirements     : set_cell_requirements,
@@ -369,8 +400,10 @@ define([
         set_notebook_config       : set_notebook_config,
 
         check_requirements        : check_requirements,
+
         execute_script            : execute_script,
         execute_with_requirements : execute_with_requirements,
+        safe_execute              : safe_execute,
 
         load_required_libraries   : load_required_libraries,
 

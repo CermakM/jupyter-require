@@ -5,6 +5,7 @@
 #    pip-compile --no-index --output-file requirements.txt requirements.in
 #
 backcall==0.1.0           # via ipython
+daiquiri==1.5.0
 decorator==4.3.2          # via ipython, traitlets
 ipython-genutils==0.2.0   # via traitlets
 ipython==7.3.0

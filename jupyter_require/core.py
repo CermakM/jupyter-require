@@ -23,13 +23,14 @@
 
 """Module for managing linked JavaScript scripts and CSS styles."""
 
-import json
+import logging
 import string
+
+import daiquiri
 
 from collections import OrderedDict
 from pathlib import Path
 
-from textwrap import dedent
 from typing import List, Union
 
 from IPython import get_ipython
@@ -37,10 +38,11 @@ from IPython.core.display import display, Javascript
 
 from ipykernel.comm import Comm
 
+logger = daiquiri.getLogger()
+
 
 Jupyter = get_ipython()
 """Current InteractiveShell instance."""
-
 
 _HERE = Path(__file__).parent
 
@@ -58,19 +60,17 @@ class RequireJS(object):
         self._msg = None
         self._msg_received = None
 
-        # check if running in Jupyter notebook
-        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
-
         # comms
         self._config_comm = None
         self._execution_comm = None
         self._safe_execution_comm = None
 
-        if self._is_notebook:
-            self._initialize_comms()
-
         # update with default required libraries
-        self.config(required or {}, shim or {})
+        self.__LIBS.update(required or {})
+        self.__SHIM.update(shim or {})
+
+        # check if running in Jupyter notebook
+        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -134,8 +134,7 @@ class RequireJS(object):
         # data to be passed to require.config()
         self._msg = {'paths': self.__LIBS, 'shim': self.__SHIM}
 
-        if self._is_notebook:
-            self._config_comm.send(data=self._msg)
+        self._config_comm.send(data=self._msg)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -160,11 +159,20 @@ class RequireJS(object):
     def _initialize_comms(self):
         """Initialize Python-JavaScript comms."""
         self._config_comm = create_comm(
-            target='config', callback=self._store_callback)
+            target='config',
+            comm_id='config.JupyterRequire',
+            callback=self._store_callback)
         self._execution_comm = create_comm(
-            target='execute', callback=self._store_callback)
+            target='execute',
+            comm_id='execute.JupyterRequire',
+            callback=self._store_callback)
         self._safe_execution_comm = create_comm(
-            target='safe_execute', callback=self._store_callback)
+            target='safe_execute',
+            comm_id='safe_execute.JupyterRequire',
+            callback=self._store_callback)
+
+        # initial configuration
+        self.config(libs={})
 
     def _store_callback(self, msg):
         """Store callback from comm."""
@@ -241,6 +249,9 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
         'parameters': params,
     }
 
+    if require._safe_execution_comm is None:
+        raise TypeError("Comm 'execute' is not open.")
+
     # noinspection PyProtectedAccess
     return require._execution_comm.send(data)  # pylint: disable=protected-access
 
@@ -271,6 +282,9 @@ def safe_execute(script: str, **kwargs):
     of custom CSS and JS files.
     """
     script = JSTemplate(script).safe_substitute(**kwargs)
+
+    if require._safe_execution_comm is None:
+        raise TypeError("Comm 'safe_execute' is not open.")
 
     # noinspection PyProtectedAccess
     return require._safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
@@ -378,3 +392,60 @@ def load_js(script: str, attrs: dict = None):
 
 require = RequireJS()
 require.__doc__ = RequireJS.__call__.__doc__
+
+
+def _handle_comms_registered(*args, **kwargs):
+    """Handle comms_registered.JupyterRequire event."""
+    logger.debug("Comms registered.")
+
+
+def _handle_extension_loaded(*args, **kwargs):
+    """Handle extension_loaded.JupyterRequire event."""
+    logger.debug("Extension loaded.")
+
+    # Jupyter discards promises on window reload,
+    # so comms have to be re-initialized
+    require._initialize_comms()
+
+
+_event_handle_map = {
+    'comms_registered': _handle_comms_registered,
+    'extension_loaded': _handle_extension_loaded
+}
+
+
+def communicate(comm, open_msg):
+    """Handle messages from Jupyter frontend."""
+    _ = open_msg  # ignored
+
+    logger.debug("Comm 'communicate' opened.")
+
+    @comm.on_msg
+    def handle_msg(msg):
+        """Handle message."""
+        data = msg['content']['data']
+
+        event = data.get('event', None)
+        event_data = data.get('event_data', {})
+
+        logger.debug(
+            "Requested message handler.\nData: %r\nEvent: %r", data, event)
+
+        response = {'resolved': True, 'value': None, 'success': False}
+        try:
+            event_type, namespace = event['type'], event['namespace']
+
+            if namespace == 'JupyterRequire':
+                handle = _event_handle_map[event_type]
+
+                response['value'] = handle(event_data)
+                response['success'] = True
+
+            logger.debug("Event has been handled.")
+
+        except Exception as err:
+            logger.debug(
+                "Exception occured while handling event '%s': %s", event, err)
+            response['value'] = err
+
+        comm.send(response)

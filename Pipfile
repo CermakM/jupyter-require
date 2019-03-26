@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 ipython = "*"
 ipykernel = "*"
-
 jupyter_contrib_nbextensions = "*"  # needed by pipenv shell
+daiquiri = "*"
 
 [dev-packages]
 
