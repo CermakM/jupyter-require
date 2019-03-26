@@ -154,6 +154,9 @@ class RequireJS(object):
         else:
             require = cls(required=require.libs, shim=require.shim)
 
+        if require._is_notebook:
+            require._initialize_comms()
+
         require.__doc__ = RequireJS.__call__.__doc__
 
     def _initialize_comms(self):

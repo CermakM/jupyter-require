@@ -128,7 +128,16 @@ define(['underscore'], function(_) {
         output_area.keyboard_manager.register_events(toinsert);
 
         // preset width for user's comfort
-        toinsert.width(output_area.element.width());
+        // dry-run append to get the current output-area width
+        let output = output_area.create_output_area();
+
+        output.append(toinsert);
+        output_area.element.append(output);
+
+        toinsert.css('width', toinsert.width());
+
+        // clean up
+        output_area.element.empty();
 
         return toinsert;
     };
@@ -142,12 +151,11 @@ define(['underscore'], function(_) {
 
     let append_output = function(type, display_data, toinsert, output_area) {
         return new Promise((resolve) => {
-
-            let output = output_area.create_output_area();
-
             let md = display_data.md;
 
+            let output = output_area.create_output_area();
             output.append(toinsert);
+
             output_area.element.append(output);
             output_area.events.trigger('output_appended.OutputArea', [type, display_data, md, toinsert]);
 

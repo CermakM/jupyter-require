@@ -382,7 +382,7 @@ define([
             console.debug("Sending event to kernel.", event, data);
 
             comm.send({event: event, event_data: data});
-            resolve();  // TODO: resolve this promise on kernel response?
+            resolve();
         });
     };
 

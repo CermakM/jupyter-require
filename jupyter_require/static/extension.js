@@ -179,8 +179,6 @@ define(function(require) {
 
                 const config = core.get_notebook_config();
 
-                core.register_targets().catch(console.error);
-
                 register_events();
 
                 if (config !== undefined) {
@@ -189,10 +187,13 @@ define(function(require) {
                         .catch(console.error);
                 }
 
-                events.trigger(
-                    'extension_loaded.JupyterRequire', {timestamp: _.now()});
-
-                resolve();
+                core.register_targets()
+                    .then(() => {
+                        events.trigger(
+                            'extension_loaded.JupyterRequire', {timestamp: _.now()});
+                    })
+                    .then(resolve)
+                    .catch(console.error);
             });
         });
     }
