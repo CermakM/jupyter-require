@@ -400,7 +400,7 @@ define([
 
         return p.then(comm.close).catch((err) => {
             comm.close();
-            throw new Error(err);
+            throw err instanceof Error ? err : new Error(err);
         });
     };
 

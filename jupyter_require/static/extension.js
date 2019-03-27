@@ -61,7 +61,40 @@ define(function(require) {
             })
             .then(() => Jupyter.notebook.save_notebook())
             .then(() => console.debug("Successfully finalized cell outputs."))
-            .catch(console.error);
+            .catch((err) => {
+                console.error();
+                events.trigger('notebook_save_failed.Notebook', err);
+        });
+    }
+
+
+    /**
+     * Register actions
+     *
+     *
+     */
+    function register_actions() {
+        const prefix = 'jupyter-require';
+        const action_name = 'save-and-finalize';
+
+        const action = {
+            icon: 'fa-anchor',  // a font-awesome class used on buttons, etc
+            help    : 'Save and Finalize',
+            help_index : 'fb',
+            handler : async function (env, event) {
+                await finalize_cells();  // blocking call
+
+                if(event){
+                    event.preventDefault();
+                }
+                return false;
+            } ,
+        };
+
+        // returns 'jupyter-require:save-and-finalize'
+        const full_action_name = Jupyter.actions.register(action, action_name, prefix);
+
+        Jupyter.toolbar.add_buttons_group([full_action_name]);
     }
 
     /**
@@ -75,8 +108,10 @@ define(function(require) {
         events.on({
             'extension_loaded.JupyterRequire': (e, d) => {
                 console.debug("Extension loaded.");
+                // we can catch it, since this error occurs at the beginning
+                // only when the require package has not been imported yet
                 core.communicate(e)
-                    .catch(console.warn);
+                    .catch(() => console.warn(e.message));  // eat the stack trace
             },
 
             'comms_registered.JupyterRequire': (e, d) => {
@@ -179,6 +214,7 @@ define(function(require) {
 
                 const config = core.get_notebook_config();
 
+                register_actions();
                 register_events();
 
                 core.register_targets()
