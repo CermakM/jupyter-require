@@ -78,7 +78,7 @@ define(function(require) {
         const action_name = 'save-and-finalize';
 
         const action = {
-            icon: 'fa-anchor',  // a font-awesome class used on buttons, etc
+            icon: 'fa-shield-alt',  // a font-awesome class used on buttons, etc
             help    : 'Save and Finalize',
             help_index : 'fb',
             handler : async function (env, event) {
@@ -94,7 +94,11 @@ define(function(require) {
         // returns 'jupyter-require:save-and-finalize'
         const full_action_name = Jupyter.actions.register(action, action_name, prefix);
 
-        Jupyter.toolbar.add_buttons_group([full_action_name]);
+        const btn_group = Jupyter.toolbar.add_buttons_group([full_action_name], prefix);
+
+        // position after the default save button
+        // NOTE: This really IS id='save-notbook'
+        $('div#save-notbook.btn-group').after(btn_group);
     }
 
     /**
@@ -111,7 +115,7 @@ define(function(require) {
                 // we can catch it, since this error occurs at the beginning
                 // only when the require package has not been imported yet
                 core.communicate(e)
-                    .catch(() => console.warn(e.message));  // eat the stack trace
+                    .catch((err) => console.warn(err.message));  // eat the stacktrace
             },
 
             'comms_registered.JupyterRequire': (e, d) => {
