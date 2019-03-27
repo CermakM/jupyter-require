@@ -31,9 +31,29 @@ define(function(require) {
     let core    = require('./core');
     let display = require('./display');
 
-
-    function freeze_cells() {
+    /**
+     * Get code cells with display data
+     *
+     * @returns {*[]}
+     */
+    function get_display_cells() {
         let cells = Jupyter.notebook.get_cells();
+
+        return cells.filter(
+            (c) => {
+                return c.cell_type === 'code' &&
+                    c.output_area.outputs  &&
+                    c.output_area.outputs.some( d => d.output_type === 'display_data');
+            });
+    }
+
+    /**
+     * Freeze cells
+     *
+     * @returns {Promise<void | never>}
+     */
+    function freeze_cells() {
+        let cells = get_display_cells();
 
         return Promise.all(cells.map((cell) => display.freeze_cell_outputs(cell)))
             .then(() => console.debug("Successfully frozen cell outputs."))
@@ -50,7 +70,7 @@ define(function(require) {
      * @returns {Promise<void | never>}
      */
     function finalize_cells() {
-        let cells = Jupyter.notebook.get_cells();
+        let cells = get_display_cells();
 
         return Promise.all(cells.map((cell) => display.finalize_cell_outputs(cell)))
             .then(() => {
@@ -70,7 +90,6 @@ define(function(require) {
 
     /**
      * Register actions
-     *
      *
      */
     function register_actions() {
@@ -171,12 +190,9 @@ define(function(require) {
      *
      */
     function init_existing_cells() {
-        let cells = Jupyter.notebook.get_cells();
-        let code_cells = cells.filter(
-            (c) => c.cell_type === 'code' && c.output_type === 'display_data'
-        );
+        let cells = get_display_cells();
 
-        code_cells.forEach(async (cell) => {
+        cells.forEach(async (cell) => {
             // mark frozen outputs
             let outputs = cell.output_area.outputs;
 

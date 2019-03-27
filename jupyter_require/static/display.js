@@ -114,7 +114,8 @@ define(['underscore'], function(_) {
 
         this.data = this.metadata.frozen_output;
         this.metadata = {
-            frozen: true
+            frozen: true,
+            finalized: true,
         };
     };
 
