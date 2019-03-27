@@ -290,6 +290,7 @@ def safe_execute(script: str, **kwargs):
     This function is convenient for automatic loading and linking
     of custom CSS and JS files.
     """
+    script = "{ " + script + " }"  # provide local scope
     script = JSTemplate(script).safe_substitute(**kwargs)
 
     if require._safe_execution_comm is None:
