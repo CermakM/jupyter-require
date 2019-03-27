@@ -75,12 +75,12 @@ define(function(require) {
         events.on({
             'extension_loaded.JupyterRequire': (e, d) => {
                 console.debug("Extension loaded.");
-                core.communicate(e, d).catch(console.warn);
+                core.communicate(e)
+                    .catch(console.warn);
             },
 
             'comms_registered.JupyterRequire': (e, d) => {
                 console.debug("Comm targets registered.");
-                core.communicate(e, d).catch(console.warn);
             }
         });
 
@@ -181,19 +181,18 @@ define(function(require) {
 
                 register_events();
 
+                core.register_targets()
+                    .then(console.debug);
+
                 if (config !== undefined) {
                     core.load_required_libraries(config)
                         .then(() => init_existing_cells())
+                        .then(() => {
+                            events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
+                            resolve();
+                        })
                         .catch(console.error);
                 }
-
-                core.register_targets()
-                    .then(() => {
-                        events.trigger(
-                            'extension_loaded.JupyterRequire', {timestamp: _.now()});
-                    })
-                    .then(resolve)
-                    .catch(console.error);
             });
         });
     }

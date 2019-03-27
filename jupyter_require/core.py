@@ -28,6 +28,8 @@ import string
 
 import daiquiri
 
+from datetime import datetime
+
 from collections import OrderedDict
 from pathlib import Path
 
@@ -161,17 +163,21 @@ class RequireJS(object):
 
     def _initialize_comms(self):
         """Initialize Python-JavaScript comms."""
+        now = datetime.now()
+
         self._config_comm = create_comm(
             target='config',
-            comm_id='config.JupyterRequire',
+            comm_id=f'config.JupyterRequire#{datetime.timestamp(now)}',
             callback=self._store_callback)
+
         self._execution_comm = create_comm(
             target='execute',
-            comm_id='execute.JupyterRequire',
+            comm_id=f'execute.JupyterRequire#{datetime.timestamp(now)}',
             callback=self._store_callback)
+
         self._safe_execution_comm = create_comm(
             target='safe_execute',
-            comm_id='safe_execute.JupyterRequire',
+            comm_id=f'safe_execute.JupyterRequire#{datetime.timestamp(now)}',
             callback=self._store_callback)
 
         # initial configuration
@@ -410,6 +416,11 @@ def _handle_extension_loaded(*args, **kwargs):
     # so comms have to be re-initialized
     require._initialize_comms()
 
+    msg = "Comms initialized."
+    logger.debug(msg)
+
+    return msg
+
 
 _event_handle_map = {
     'comms_registered': _handle_comms_registered,
@@ -426,13 +437,16 @@ def communicate(comm, open_msg):
     @comm.on_msg
     def handle_msg(msg):
         """Handle message."""
+        logger.debug(
+            "Message received: %r", msg)
+
         data = msg['content']['data']
 
         event = data.get('event', None)
         event_data = data.get('event_data', {})
 
         logger.debug(
-            "Requested message handler.\nData: %r\nEvent: %r", data, event)
+            "Requested message handler.\n\tData: %r\n\tEvent: %r", data, event)
 
         response = {'resolved': True, 'value': None, 'success': False}
         try:
@@ -444,11 +458,14 @@ def communicate(comm, open_msg):
                 response['value'] = handle(event_data)
                 response['success'] = True
 
-            logger.debug("Event has been handled.")
+            logger.debug("Success.")
 
         except Exception as err:
-            logger.debug(
-                "Exception occured while handling event '%s': %s", event, err)
+            logger.error(
+                "Error: '%s': %s", event, err)
             response['value'] = err
+
+        finally:
+            require._store_callback(msg)
 
         comm.send(response)

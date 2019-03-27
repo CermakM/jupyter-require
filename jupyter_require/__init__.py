@@ -42,13 +42,20 @@ from .magic import RequireJSMagic
 from IPython import get_ipython
 
 daiquiri.setup(
-    level=logging.INFO,
+    level=logging.DEBUG,
     outputs=[
-        daiquiri.output.File('.log', level=logging.DEBUG),
-        daiquiri.output.Stream(
+        daiquiri.output.File(
+            level=logging.DEBUG,
+            filename='.log',
             formatter=daiquiri.formatter.ColorFormatter(
                 fmt="%(asctime)s [%(process)d] %(color)s%(levelname)-8.8s %(name)s:"
-                    "%(lineno)d: %(message)s%(color_stop)s"
+                    "%(lineno)d: [JupyterRequire] %(message)s%(color_stop)s"
+            )),
+        daiquiri.output.Stream(
+            level=logging.WARN,
+            formatter=daiquiri.formatter.ColorFormatter(
+                fmt="%(asctime)s [%(process)d] %(color)s%(levelname)-8.8s %(name)s:"
+                    "%(lineno)d: [JupyterRequire] %(message)s%(color_stop)s"
             )
         ),
     ],

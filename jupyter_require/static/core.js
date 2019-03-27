@@ -26,18 +26,16 @@ define([
     'base/js/namespace',
     'base/js/events',
     'notebook/js/notebook',
+    'services/kernels/comm',
     './display'
-], function(_, Jupyter, events, notebook, display) {
+], function(_, Jupyter, events, notebook, comms, display) {
     'use strict';
 
     let Notebook = notebook.Notebook;
 
     let comm_manager = Jupyter.notebook.kernel.comm_manager;
-    let comm_id = 'communicate.JupyterRequire';
-    let comm = comm_manager.new_comm(
-        'communicate', null, null, {}, comm_id);
-
-    comm.on_msg((msg) => console.debug("Success.", msg));
+    let comm = new comms.Comm('communicate', `communicate.JupyterRequire#${_.now()}`);
+    comm_manager.register_comm(comm);
 
     /**
      * Get running cells
@@ -305,7 +303,7 @@ define([
      *
      */
     let register_targets = function() {
-        return new Promise((resolve) => {
+        let _execute = new Promise((resolve) => {
             comm_manager.register_target('execute',
                 (comm, msg) => {
                     console.debug('Comm: ', comm, 'initial message: ', msg);
@@ -319,11 +317,13 @@ define([
                         const d = msg.content.data;
                         return await execute_script.call(cell, d.script, d.require, d.parameters);
                     });
-
-                    console.debug(`Comm 'execute' registered.`);
                 }
             );
 
+            resolve(`Comm 'execute' registered.`);
+        });
+
+        let _safe_execute = new Promise((resolve) => {
             comm_manager.register_target('safe_execute',
                 (comm, msg) => {
                     console.debug('Comm: ', comm, 'initial message: ', msg);
@@ -344,10 +344,13 @@ define([
                             .catch(handle_error);
                     });
 
-                    console.debug(`Comm 'safe_execute' registered.`);
                 }
             );
 
+            resolve(`Comm 'safe_execute' registered.`);
+        });
+
+        let _config = new Promise((resolve) => {
             comm_manager.register_target('config',
                 (comm, msg) => {
                     console.debug('Comm: ', comm, 'initial message: ', msg);
@@ -359,15 +362,18 @@ define([
                             .catch(console.error);
                     });
 
-                    console.debug(`Comm 'config' registered.`);
-                }
-            );
+                });
 
-            events.trigger(
-                'comms_registered.JupyterRequire', {timestamp: _.now()});
-
-            resolve();
+            resolve(`Comm 'config' registered.`);
         });
+
+        return Promise.all([_execute, _safe_execute, _config])
+            .then((r) => {
+                events.trigger(
+                    'comms_registered.JupyterRequire', {timestamp: _.now()});
+
+                return r;
+            });
     };
 
     /**
@@ -375,14 +381,26 @@ define([
      *
      */
     let communicate = function(evt, data) {
-        const event = _.pick(evt, 'data', 'namespace', 'timeStamp', 'type');
-        console.debug("Communication requested by event: ", event);
+        console.debug("Communication requested by event: ", evt);
 
-        return new Promise((resolve) => {
+        const event = _.pick(evt, 'data', 'namespace', 'timeStamp', 'type');
+
+        comm.open({'event_type': evt.type});
+        let p = new Promise((resolve, reject) => {
             console.debug("Sending event to kernel.", event, data);
 
             comm.send({event: event, event_data: data});
-            resolve();
+            comm.on_msg((r) => {
+                console.debug("Kernel response received: ", r);
+                resolve();
+            });
+
+            setTimeout(reject, 5000, new Error("Script execution timeout."));
+        });
+
+        return p.then(comm.close).catch((err) => {
+            comm.close();
+            throw new Error(err);
         });
     };
 
