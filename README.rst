@@ -4,10 +4,7 @@ jupyter-require
 
 Jupyter nbextension for JavaScript execution and managing linked libraries and CSS stylesheets in Jupyter notebooks.
 
-.. raw:: html
-
-    <br>
-
+|
 
 About
 =====
@@ -18,18 +15,14 @@ Jupyter-require allows to execute and manage custom `JavaScript`_ and `CSS`_ fil
 
 Jupyter-require provides a unique opportunity to customize Jupyter notebooks and enables users to handcraft their own JavaScript-augmented workflows while keeping in mind synchronicity demands and security implications of such approaches.
 
-.. raw:: html
-
-    <br>
+|
 
 What is this for?
 =================
 
 Let's demonstrate the usage on an example. Note that the usage is limited only by your imagination, this is just a demonstration of a single use case.
 
-.. raw:: html
-
-    <br>
+|
 
 If you are into data visualization like me, you've most likely already heard of `d3`_.js JavaScript ecosystem.
 It's an incredibly powerful tool which can be used to create advanced interactive visualizations.
@@ -39,9 +32,7 @@ However, it is not very comfortable to use in Jupyter notebooks let alone integr
     See the article about `Custom D3.js Visualization in a Jupyter Notebook <https://www.stefaanlippens.net/jupyter-custom-d3-visualization.html>`_.
 
 
-.. raw:: html
-
-    <br>
+|
 
 
 That's where `jupyter-require`_ and related `jupyter-d3`_ come into play.
@@ -50,10 +41,7 @@ jupyter-require allows you to source custom scripts (like `d3`_) and styles and 
 
 Check out also `jupyter-d3`_ which takes the `d3`_ workflow in Jupyter notebooks to another level.
 
-.. raw:: html
-
-    <br>
-
+|
 
 Installation
 ============
@@ -80,9 +68,7 @@ All of that above can be done from command line, so if you're used to installing
 
     NOTE: You may need to reload the page (just hit F5) after these steps for the jupyter-require nbextension to initialize properly.
 
-.. raw:: html
-
-    <br>
+|
 
 Example usage
 =============
@@ -151,10 +137,7 @@ If you're not a fan of magic commands, you can make use of equivalent API calls.
 
     load_css(...)  # stylesheet goes here
 
-.. raw:: html
-
-    <br>
-
+|
 
 Executing custom script
 -----------------------
@@ -212,16 +195,11 @@ And you should see those three pretty circles :point_up: .
 
     ⚠️ It is possible that the current markdown renderer does not render the raw `</svg>` element above, all the more reason to try it yourself! :smirk:
 
-.. raw:: html
-
-    <br>
+|
 
 There is certainly more to it, but I am gonna leave it to your adventurous desires.
 
-.. raw:: html
-
-    <br>
-
+|
 
 Synchronicity
 =============
@@ -233,10 +211,7 @@ This is very often not the desired behaviour, since we might to work with the re
 
 Jupyter-require solves this issue by converting every executed script into `Promise <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise>`__ and awaiting it while pausing the execution of Python kernel.
 
-.. raw:: html
-
-    <br>
-
+|
 
 Execution & Security -- *safe scripts* and *finalization*
 =========================================================
@@ -264,17 +239,13 @@ Going back to the `d3`_ example, finalizing the cells would make the plot that w
     ⚠️ SVG poses another security issue, however, hence GitHub might not display them to prevent that, see for example `this <https://github.community/t5/How-to-use-Git-and-GitHub/Embedding-a-SVG/td-p/2192>`_ conversation. We will try to act on this issue in the future.
 
 
-.. raw:: html
-
-    <br>
+|
 
 We are thinking about the ways we could sandbox the execution and the output even more, but bare in mind that this project is very young, so let's put one foot in front of the other.
 
 To finalize your outputs, use the ``Save and Finalize`` action button which should be present on the right of the regular ``Save and Checkpoint`` button. The finalization also happens automatically when you *properly* close the notebook. We cannot handle SIGTERMs at the moment, so be aware that in that case the scripts will be discarded and the output lost.
 
-.. raw:: html
-
-    <br>
+|
 
 **Safe scripts**
 
@@ -288,11 +259,7 @@ Hence you can enjoy the benefits of a sandbox(ish) synchronous execution while s
 To treat your script as *safe script*, execute it with ``safe_execute`` function.
 
 
-.. raw:: html
-
-  <br>
-  <hr>
-
+|
 
 .. _jupyter-require:    https://github.com/CermakM/jupyter-require
 .. _jupyter-d3:         https://github.com/CermakM/jupyter-d3
@@ -305,13 +272,14 @@ To treat your script as *safe script*, execute it with ``safe_execute`` function
 .. _MDN web docs:       https://developer.mozilla.org/en-US/
 .. _RequireJS:          https://requirejs.org/
 
+|
+
+----
 
 .. rubric:: Footnotes
 
-Resources
-
 +-------------------+------------------------------------------------+
-| resource          | link
+| resource          | link                                           |
 +===================+================================================+
 | jupyter-require   | `https://github.com/CermakM/jupyter-require`_  |
 +-------------------+------------------------------------------------+
@@ -333,5 +301,7 @@ Resources
 +-------------------+------------------------------------------------+
 | requireJS         | `https://requirejs.org/`_                      |
 +-------------------+------------------------------------------------+
+
+|
 
     Author: Marek Cermak <macermak@redhat.com>
