@@ -46,22 +46,32 @@ Check out also `jupyter-d3`_ which takes the `d3`_ workflow in Jupyter notebooks
 Installation
 ============
 
+To install jupyter-require Python package:
 
-.. code-block:: python
+
+.. code-block:: bash
 
     pip install jupyter-require
 
-To install the nbextension and enable it, we have supplied a helper functions in the ``utils`` module.
+
+And to install the nbextension itself and enable it, we have supplied a helper functions in the `jupyter-tools <https://github.com/CermakM/jupyter-require>`_ ``utils`` module.
+
+
+.. code-block:: bash
+
+    # this is a very young project and there hasn't been time to turn it into a package yet
+    git clone https://github.com/CermakM/jupyter-tools && cd jupyter-tools
+    pip install .
 
 .. code-block:: python
 
-    from jupyter_require.utils import utils
+    from jupyter_tools import utils
 
     # install jupyter-require extension
     utils.install_nbextension('jupyter_require', overwrite=True)  # note there is an underscore, it's Python module name
 
     # load and enable the extension
-    utils._load_nbextension(enable=True)
+    utils.load_nbextension(enable=True)
 
 
 All of that above can be done from command line, so if you're used to installing nbextensions the regular way, feel free to do so. In fact, you are **recommended** to, this approach is just for lazy people like myself.
