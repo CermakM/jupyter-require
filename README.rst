@@ -281,25 +281,25 @@ To treat your script as *safe script*, execute it with ``safe_execute`` function
 +-------------------+------------------------------------------------+
 | resource          | link                                           |
 +===================+================================================+
-| jupyter-require   | `https://github.com/CermakM/jupyter-require`_  |
+| jupyter-require   | `https://github.com/CermakM/jupyter-require`   |
 +-------------------+------------------------------------------------+
-| jupyter-d3        | `https://github.com/CermakM/jupyter-d3`_       |
+| jupyter-d3        | `https://github.com/CermakM/jupyter-d3`        |
 +-------------------+------------------------------------------------+
-| CSS               | `https://www.w3schools.com/css/`_              |
+| CSS               | `https://www.w3schools.com/css/`               |
 +-------------------+------------------------------------------------+
-| D3                | `https://d3js.org`_                            |
+| D3                | `https://d3js.org`                             |
 +-------------------+------------------------------------------------+
-| GitHub            | `https://github.com/`_                         |
+| GitHub            | `https://github.com/`                          |
 +-------------------+------------------------------------------------+
-| JavaScript        | `https://www.w3schools.com/js/default.asp`_    |
+| JavaScript        | `https://www.w3schools.com/js/default.asp`     |
 +-------------------+------------------------------------------------+
-| Jupyter           | `https://jupyter.org/`_                        |
+| Jupyter           | `https://jupyter.org/`                         |
 +-------------------+------------------------------------------------+
-| nbviewer          | `https://nbviewer.jupyter.org/`_               |
+| nbviewer          | `https://nbviewer.jupyter.org/`                |
 +-------------------+------------------------------------------------+
-| MDN web docs      | `https://developer.mozilla.org/en-US/`_        |
+| MDN web docs      | `https://developer.mozilla.org/en-US/`         |
 +-------------------+------------------------------------------------+
-| requireJS         | `https://requirejs.org/`_                      |
+| requireJS         | `https://requirejs.org/`                       |
 +-------------------+------------------------------------------------+
 
 |
