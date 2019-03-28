@@ -23,7 +23,7 @@ NAME = 'jupyter_require'
 ABOUT = dict()
 exec(Path(HERE, NAME, '__about__.py').read_text(), ABOUT)
 
-README: str = Path(HERE, "README.md").read_text(encoding='utf-8')
+README: str = Path(HERE, "README.rst").read_text(encoding='utf-8')
 REQUIREMENTS: list = Path(HERE, 'requirements.txt').read_text().splitlines()
 
 log.set_verbosity(log.DEBUG)
