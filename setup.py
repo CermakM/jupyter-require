@@ -73,7 +73,7 @@ setup(
 
     description=ABOUT['__summary__'],
     long_description=README,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
 
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
