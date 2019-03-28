@@ -3,7 +3,7 @@ recursive-include jupyter_require/static *.*
 include setupbase.py
 
 include LICENSE
-include README.md
+include README.rst
 
 # Documentation
 graft docs
