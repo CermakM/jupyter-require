@@ -34,12 +34,17 @@ from .core import link_css
 from .core import link_js
 from .core import load_js
 from .core import load_css
+
 from .core import communicate
+
+from .core import execute_with_requirements
+from .core import execute
+from .core import safe_execute
+
 from .core import require
 
-from .magic import RequireJSMagic
-
 from IPython import get_ipython
+
 
 daiquiri.setup(
     level=logging.DEBUG,
@@ -66,6 +71,8 @@ logger = daiquiri.getLogger()
 
 def load_ipython_extension(ipython):
     """Load the IPython Jupyter Require extension."""
+    from .magic import RequireJSMagic
+
     logger.debug("Loading Jupyter Require extension.")
 
     if not hasattr(ipython, 'kernel'):
