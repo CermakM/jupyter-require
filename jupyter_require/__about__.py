@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 __title__ = "jupyter-require"
-__summary__ = "Jupyter magic for managing linked JavaScript scripts and CSS styles."
+__summary__ = "Jupyter nbextension for JavaScript execution and managing linked libraries and CSS stylesheets in Jupyter notebooks."
 __uri__ = "https://github.com/CermakM/jupyter-require"
 
 __version__ = "0.2.0rc"
