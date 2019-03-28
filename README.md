@@ -6,8 +6,10 @@ Jupyter nbextension for JavaScript execution and managing linked libraries and C
 
 The [`jupyter-require`](https://github.com/CermakM/jupyter-require) library is intended to be used in [Jupyter] notebooks.
 
-`jupyter-require` allows you to link custom [CSS] and [JavaScript] files
 and even create and load your own styles and scripts directly from [Jupyter] notebook.
+Jupyter-require allows to execute and manage custom [JavaScript] and [CSS] files and even create and load your own styles and scripts directly from [Jupyter] notebook.
+
+Jupyter-require provides unique opportunity to customize Jupyter notebooks and enables users to handcraft their own JavaScript-augmented workflows while keeping in mind synchronicity demands and security implications of such approaches.
 
 <br>
 
@@ -50,7 +52,7 @@ utils.install_nbextension('jupyter_require', overwrite=True)  # note there is an
 utils._load_nbextension(enable=True)
 ```
 
-All of that above can be done from command line, so if you're used to install nbextensions the regular way, feel free to do so. In fact, you are __recommended__ to, this approach is just for lazy people like myself.
+All of that above can be done from command line, so if you're used to install nbextensions the regular way, feel free to do so. In fact, you are **recommended** to, this approach is just for lazy people like myself.
 
 > NOTE: You may need to reload the page (just hit F5) after these steps for the jupyter-require nbextension to initialize properly.
 
@@ -71,10 +73,10 @@ Loading required libraries is now as simple as:
 %require d3-hierarchy https://d3js.org/d3-hierarchy.v1.min
 ```
 
-> Note that the path does __NOT__ contain the `.js` file extension. This is [requireJS] standard.
+> Note that the path does **NOT** contain the `.js` file extension. This is [requireJS] standard.
 
 
-The `%require` is _jupyter magic command_ and the rest are the parameters. The command takes lib name and path.
+The `%require` is *jupyter magic command* and the rest are the parameters. The command takes lib name and path.
 
 
 ### Creating custom style elements
@@ -175,6 +177,8 @@ And you should see those three pretty circles :point_up: .
 
 There is certainly more to it, but I am gonna leave it to your adventurous desires.
 
+<br>
+
 # Synchronicity
 
 JavaScript execution is by default asynchronous. All the more in Jupyter notebooks.
@@ -184,22 +188,24 @@ This is very often not a desired behavior, since we might to work with the resul
 
 Jupyter-require solves this issue by converting every executed script into [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) and awaiting it while pausing the execution of Python kernel.
 
+<br>
+
 # Execution & Security -- *safe scripts* and *finalization*
 
 In Jupyter notebooks, it might be sometimes unfortunate how the JavaScript is stored (and treated) in general in the notebook environment.
 `jupyter-require` introduces the notion of *safe scripts* and *finalization*. Let's look at the latter first.
 
-__Finalization__
+**Finalization**
 
 When user executes a script via native Jupyter API, that is typicaly something like `display(Javascript("""..."""))`, what happens behind the scenes is actually quite complicated. The one important thing to now, however, is that the *whole* script is embedded into the cell output and the resulting `*.ipynb` file.
-Then, __every time__ a cell is copied or re-created (i.e., on notebook reload), the script is __executed__. Since this execution is not sand-boxed. In fact, it is executed in __window context__ using `eval` function (see the section ['Do not ever use`eval`!'](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#Do_not_ever_use_eval!) from the official [MDN web docs]).
+Then, **every time** a cell is copied or re-created (i.e., on notebook reload), the script is **executed**. Since this execution is not sand-boxed. In fact, it is executed in **window context** using `eval` function (see the section ['Do not ever use`eval`!'](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#Do_not_ever_use_eval!) from the official [MDN web docs]).
 This can potentially be a security threat!
 Also, if you don't want to share the script that produced the output, but you want the output to be present, this does not happen either.
 
 We try to combat that issue step by step, our approach is not optimal either, but it does yield some improvements and we believe that over time, it will get even better. When executing script *with* jupyter-require `execute_with_requirements` function, it is not the script which is embedded, it is the **Function object** itself which the cells carries with. This allows the script to be re-executed when we copy/paste a cell or stored in a clipboard when cutting the cell.
-Also, we do not evaluate the script in window context using the `eval` function, as Jupyter by default does. Instead, at the current development state, we __wrap it__ in its own __Function scope__ and set its `this` and `element` context manually.
+Also, we do not evaluate the script in window context using the `eval` function, as Jupyter by default does. Instead, at the current development state, we **wrap it** in its own **Function scope** and set its `this` and `element` context manually.
 
-Aight, still not a word about *finalization*, right? What finalization means in this context, is __discarding__ the JavaScript code which produced the output, cleaning the metadata and __saving the output__ displayed in the cell output area into static state.
+Aight, still not a word about *finalization*, right? What finalization means in this context, is **discarding** the JavaScript code which produced the output, cleaning the metadata and **saving the output** displayed in the cell output area into static state.
 Going back to the [d3] example, finalizing the cells would make the plot that we produced persistent and JSON serializable. The output would then be visible in tools like [nbviewer] or [GitHub] `ipynb` preview.
 
 > NOTE: SVG do pose another security issue, however, hence GitHub might not display them to prevent that, see for example [this](https://github.community/t5/How-to-use-Git-and-GitHub/Embedding-a-SVG/td-p/2192) conversation. We will try to act on this issue in the future.
@@ -210,14 +216,14 @@ To finalize your outputs, use the `Save and Finalize` action button which should
 
 <br>
 
-__Safe scripts__
+**Safe scripts**
 
 > ⚠️ The notion of safe scripts is something which has been added pretty recently and is under heavy observation.
 
 By the word _safe_ we don't refer to an execution which reduces security threats, no, nothing like that. It is *YOU* who guaratee that the script *is* safe and can be treated as such.
-The mechanism which we treat *safe scripts* by is very similar to the one described above, with one important change: safe scripts are similar to the default Jupyter notebook behaviour in a sense that hey are also __executed on the notebook reload__ and are also __stored in the resulting `*.ipynb` notebook file__.
+The mechanism which we treat *safe scripts* by is very similar to the one described above, with one important change: safe scripts are similar to the default Jupyter notebook behaviour in a sense that hey are also **executed on the notebook reload** and are also **stored in the resulting `*.ipynb` notebook file**.
 
-Hence you can enjoy the benefits of sand-box(ish) synchronous execution while still having the scripts stored in the output. The one __limitation__ is that they do not allow to specify requirements as the `execute_with_requirements` function does by its `required` parameter. This is becouse those scripts can be executed *before* extensions are actually loaded and we can not guarantee (at least we don't know how, right now) that the funcionality of jupyter-require will be present at that time.
+Hence you can enjoy the benefits of sand-box(ish) synchronous execution while still having the scripts stored in the output. The one **limitation** is that they do not allow to specify requirements as the `execute_with_requirements` function does by its `required` parameter. This is becouse those scripts can be executed *before* extensions are actually loaded and we can not guarantee (at least we don't know how, right now) that the funcionality of jupyter-require will be present at that time.
 
 To treat your script as *safe script*, execute it with `safe_execute` function.
 
