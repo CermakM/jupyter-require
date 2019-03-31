@@ -373,14 +373,14 @@ def load_js(script: str, attrs: dict = None):
     attrs = attrs or {}
 
     # escape dollar signs inside ticks and ticks
-    user_script = script \
+    js = script \
         .replace('`', '\`') \
         .replace('${', '\${')
 
     script = """
         'use strict';
     
-        const script = `$$script`;
+        const script = `$$js`;
         const attributes = $$attrs || {};
         
         let id = attributes.id;
@@ -397,7 +397,7 @@ def load_js(script: str, attrs: dict = None):
         if (!elem_exists) document.head.appendChild(e);
     """
 
-    return safe_execute(script, script=user_script, attrs=attrs)
+    return safe_execute(script, js=js, attrs=attrs)
 
 
 require = RequireJS()
