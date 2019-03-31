@@ -161,7 +161,7 @@ define([
 
         const output_error = {
             ename: 'JupyterRequireError',
-            evalue: error.message || error,
+            evalue: error.message || JSON.stringify(error),
             traceback: traceback,
             output_type: 'error'
         };
