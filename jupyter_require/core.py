@@ -147,14 +147,15 @@ class RequireJS(object):
         self.__SHIM.pop(lib)
 
     @classmethod
-    def reload(cls, clean=False):
+    def reload(cls, clear=False):
         """Reload and create new require object."""
         global require
 
-        if clean:
-            require = cls()
-        else:
-            require = cls(required=require.libs, shim=require.shim)
+        if clear:
+            cls.__LIBS.clear()
+            cls.__SHIM.clear()
+
+        require = cls(required=require.libs, shim=require.shim)
 
         if require._is_notebook:
             require._initialize_comms()
