@@ -197,6 +197,8 @@ define(function(require) {
             let outputs = cell.output_area.outputs;
 
             outputs.forEach((output) => {
+                if (output.metadata === undefined)
+                    return;
                 if (output.metadata.frozen === true) {
                     let element = $(output.element).find('.output_subarea');
 
