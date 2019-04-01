@@ -127,19 +127,15 @@ define([
                     clearTimeout(tid);
                     clearInterval(iid);
 
-                    resolve({
-                        [lib]: "Success."
-                    });
+                    resolve(`${lib}: Success.`);
                 };
                 let errback = function() {
                     clearInterval(iid);
 
-                    reject({
-                        [lib]: `Error: Library '${lib}' is not loaded.`
-                    });
+                    reject(new Error(`${lib}: Error: Timeout. Library '${lib}' is not loaded.`));
                 };
 
-                tid = setTimeout(errback, 5000);
+                tid = setTimeout(errback, 10000);
                 iid = setInterval(() => require([lib], callback), 250);
 
             });
