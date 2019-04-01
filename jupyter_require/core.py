@@ -301,7 +301,7 @@ def safe_execute(script: str, **kwargs):
     return require._safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
 
 
-def link_css(stylesheet: str, attrs: dict = None):
+def link_css(href: str, attrs: dict = None):
     """Link CSS stylesheet."""
     script = """
         'use strict';
@@ -324,22 +324,22 @@ def link_css(stylesheet: str, attrs: dict = None):
         document.head.appendChild(link);
     """
 
-    return safe_execute(script, href=stylesheet, attrs=attrs)
+    return safe_execute(script, href=href, attrs=attrs)
 
 
-def link_js(lib: str):
+def link_js(src: str):
     """Link JavaScript library."""
     script = """
         'use strict';
         
-        const src = "$$lib";
+        const src = "$$src";
         let script = document.createElement("script");
         script.src = src;
 
         document.head.appendChild(script);
     """
 
-    return safe_execute(script, lib=lib)
+    return safe_execute(script, src=lib)
 
 
 def load_css(style: str, attrs: dict = None):

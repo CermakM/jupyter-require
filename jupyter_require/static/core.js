@@ -157,11 +157,12 @@ define([
     function handle_error(error) {
         console.error(error);
 
-        let traceback = error.stack ? error.stack.split('\n') : [""];
+        let json = 'JupyterRequireError:\n' + JSON.stringify(error, null, 4);
+        let traceback = error.stack ? error.stack.split('\n') : json.split('\n');
 
         const output_error = {
             ename: 'JupyterRequireError',
-            evalue: error.message || JSON.stringify(error),
+            evalue: error.message || json,
             traceback: traceback,
             output_type: 'error'
         };
