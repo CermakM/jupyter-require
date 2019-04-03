@@ -239,18 +239,20 @@ define(function(require) {
                 register_actions();
                 register_events();
 
-                core.register_targets()
-                    .then(console.debug);
+                setTimeout(() => {
+                    core.register_targets()
+                        .then(console.debug);
 
-                if (config !== undefined) {
-                    core.load_required_libraries(config)
-                        .then(() => init_existing_cells())
-                        .then(() => {
-                            events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
-                            resolve();
-                        })
-                        .catch(console.error);
-                }
+                    if (config !== undefined) {
+                        core.load_required_libraries(config)
+                            .then(() => init_existing_cells())
+                            .then(() => {
+                                events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
+                                resolve();
+                            })
+                            .catch(console.error);
+                    }
+                }, 1000);
             });
         });
     }

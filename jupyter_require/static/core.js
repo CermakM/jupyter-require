@@ -33,9 +33,23 @@ define([
 
     let Notebook = notebook.Notebook;
 
-    let comm_manager = Jupyter.notebook.kernel.comm_manager;
-    let comm = new comms.Comm('communicate', `communicate.JupyterRequire#${_.now()}`);
-    comm_manager.register_comm(comm);
+    let comm_manager;
+    let comm;
+
+    let _init_comm_manager = function (kernel) {
+        // define in the outer scope
+        comm_manager = kernel.comm_manager;
+        comm = new comms.Comm('communicate', `communicate.JupyterRequire#${_.now()}`);
+
+        comm_manager.register_comm(comm);
+    };
+
+    if (Jupyter.notebook.kernel) {
+        _init_comm_manager(Jupyter.notebook.kernel);
+    } else {
+        // kernel is not ready yet
+        events.one('kernel_created.Session', (e, d) => _init_comm_manager(d.kernel));
+    }
 
     /**
      * Get running cells
@@ -132,7 +146,7 @@ define([
                 let errback = function() {
                     clearInterval(iid);
 
-                    reject(new Error(`${lib}: Error: Timeout. Library '${lib}' is not loaded.`));
+                    reject(new Error(`${lib}: Timeout. Library '${lib}' is not loaded.`));
                 };
 
                 tid = setTimeout(errback, 10000);
@@ -281,18 +295,26 @@ define([
         let cell = this;  // current CodeCell
         let output_area = cell.output_area;
 
-        let wrapped = new AsyncFunction(...params, script.toString());
-        let execute = _.partial(execute_with_requirements, wrapped, required);
+        try {
+            let wrapped = new AsyncFunction(...params, script.toString());
+            let execute = _.partial(execute_with_requirements, wrapped, required);
 
-        await Promise.all(check_requirements(required))
-            .then(async (r) => {
-                console.debug(r);
-                await display.append_javascript(execute, output_area).then(
-                    (r) => console.debug("Output appended.", r)
-                );
-                events.trigger('require.JupyterRequire', {cell: cell, require: required});
-            })
-            .catch(handle_error);
+            await Promise.all(check_requirements(required))
+                .then(async (r) => {
+                    console.debug(r);
+                    await display.append_javascript(execute, output_area).then(
+                        (r) => console.debug("Output appended.", r)
+                    );
+                    events.trigger('require.JupyterRequire', {cell: cell, require: required});
+                })
+                .catch(handle_error);
+        } catch(err) {
+            // This error occurs mainly when user provides invalid script
+            // when wrapping to an AsyncFunction
+            handle_error(err);  // handle to append it to the cell output
+
+            throw err;
+        }
     };
 
     /**
