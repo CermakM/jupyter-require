@@ -155,7 +155,10 @@ class RequireJS(object):
             cls.__LIBS.clear()
             cls.__SHIM.clear()
 
-        require = cls(required=require.libs, shim=require.shim)
+        libs = require.libs if not clear else []
+        shim = require.shim if not clear else []
+
+        require = cls(required=libs, shim=shim)
 
         if require._is_notebook:
             require._initialize_comms()
