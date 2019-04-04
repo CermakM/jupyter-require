@@ -60,8 +60,7 @@ And to install the nbextension itself and enable it, we have supplied a helper f
 .. code-block:: bash
 
     # this is a very young project and there hasn't been time to turn it into a package yet
-    git clone https://github.com/CermakM/jupyter-tools && cd jupyter-tools
-    pip install .
+    pip install -e "git://github.com/CermakM/jupyter-tools#egg=jupyter-tools"
 
 .. code-block:: python
 
