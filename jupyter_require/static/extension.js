@@ -97,7 +97,7 @@ define(function(require) {
         const action_name = 'save-and-finalize';
 
         const action = {
-            icon: 'fas fa-shield-alt',  // a font-awesome class used on buttons, etc
+            icon: 'fa-shield-alt',  // a font-awesome class used on buttons, etc
             help    : 'Save and Finalize',
             help_index : 'fb',
             handler : async function (env, event) {

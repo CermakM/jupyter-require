@@ -1,6 +1,9 @@
 ipython
 ipykernel
 
+# compression
+cssompressor
+
 # logging
 daiquiri
 

@@ -23,6 +23,7 @@
 
 """Common notebook utilities."""
 
+import csscompressor
 
 from IPython import get_ipython
 
@@ -75,7 +76,7 @@ def link_js(src: str):
     return safe_execute(script, src=src)
 
 
-def load_css(style: str, attrs: dict = None):
+def load_css(style: str, attrs: dict = None, compress=True, **compressor_options):
     """Create new style element and add it to the page."""
     attrs = attrs or {}
 
@@ -98,6 +99,9 @@ def load_css(style: str, attrs: dict = None):
 
         if (!elem_exists) document.head.appendChild(e);
     """
+
+    if compress:
+        style = csscompressor.compress(style, **compressor_options)
 
     return safe_execute(script, style=style, attrs=attrs)
 
