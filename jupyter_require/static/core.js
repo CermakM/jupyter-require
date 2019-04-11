@@ -402,6 +402,13 @@ define([
     let communicate = function(evt, data) {
         console.debug("Communication requested by event: ", evt);
 
+        if (_.isUndefined(comm)) {
+            console.warn(
+                "Communication comm has not been initialized yet. " +
+                "Is the kernel ready? Interrupting...");
+            return;
+        }
+
         const event = _.pick(evt, 'data', 'namespace', 'timeStamp', 'type');
 
         comm.open({'event_type': evt.type});
