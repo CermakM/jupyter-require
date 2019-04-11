@@ -70,7 +70,7 @@ And to install the nbextension itself and enable it, we have supplied a helper f
     utils.install_nbextension('jupyter_require', overwrite=True)  # note there is an underscore, it's Python module name
 
     # load and enable the extension
-    utils.load_nbextension(enable=True)
+    utils.load_nbextension('jupyter-require', enable=True)
 
 
 All of that above can be done from command line, so if you're used to installing nbextensions the regular way, feel free to do so. In fact, you are **recommended** to, this approach is just for lazy people like myself.
