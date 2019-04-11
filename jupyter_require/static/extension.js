@@ -117,7 +117,8 @@ define(function(require) {
 
         // position after the default save button
         // NOTE: This really IS id='save-notbook'
-        $('div#save-notbook.btn-group').after(btn_group);
+        $('div#save-notbook.btn-group')
+            .after(btn_group);
     }
 
     /**
@@ -220,6 +221,25 @@ define(function(require) {
         });
     }
 
+    /**
+     * Link CSS
+     *
+     * @param url {String} - full url to the CSS file
+     * @param attrs {Object} - additional attributes, like integrity etc.
+     *
+     */
+    function link_css(url, attrs) {
+        let link = document.createElement("link");
+
+        link.type = "text/css";
+        link.rel  = "stylesheet";
+        link.href = url;
+
+        Object.assign(link, attrs);
+
+        document.getElementsByTagName("head")[0].appendChild(link);
+    }
+
 
     /**
      * Load extension
@@ -236,23 +256,33 @@ define(function(require) {
 
                 const config = core.get_notebook_config();
 
-                register_actions();
                 register_events();
 
-                setTimeout(() => {
-                    core.register_targets()
-                        .then(console.debug);
+                Jupyter.notebook.config.loaded.then(() => {
 
-                    if (config !== undefined) {
-                        core.load_required_libraries(config)
-                            .then(() => init_existing_cells())
-                            .then(() => {
-                                events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
-                                resolve();
-                            })
-                            .catch(console.error);
-                    }
-                }, 1000);
+                    const fas_url = "https://use.fontawesome.com/releases/v5.8.1/css/all.css";
+                    link_css(fas_url , {
+                            integrity   : "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
+                            crossOrigin : "anonymous"
+                    });
+
+                    register_actions();
+
+                    setTimeout(() => {
+                        core.register_targets()
+                            .then(console.debug);
+
+                        if (config !== undefined) {
+                            core.load_required_libraries(config)
+                                .then(() => init_existing_cells())
+                                .then(() => {
+                                    events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
+                                    resolve();
+                                })
+                                .catch(console.error);
+                        }
+                    }, 1000);
+                });
             });
         });
     }
