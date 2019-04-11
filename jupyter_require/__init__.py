@@ -30,10 +30,10 @@ import daiquiri.formatter
 
 from .__about__ import __version__
 
-from .core import link_css
-from .core import link_js
-from .core import load_js
-from .core import load_css
+from .notebook import link_css
+from .notebook import link_js
+from .notebook import load_js
+from .notebook import load_css
 
 from .core import communicate
 

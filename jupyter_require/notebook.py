@@ -34,6 +34,106 @@ Jupyter = get_ipython()
 """Current InteractiveShell instance."""
 
 
+def link_css(href: str, attrs: dict = None):
+    """Link CSS stylesheet."""
+    script = """
+        'use strict';
+        
+        const href = "$$href";
+        const attributes = $$attrs || {};
+        
+        let link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.type = "text/css";
+        try {
+            link.href = requirejs.toUrl(href, 'css');
+        } catch (error) {
+            link.href = href;
+        }
+        
+        Object.entries(attributes)
+            .forEach( ([attr, val]) => $(link).attr(attr, val) );
+        
+        document.head.appendChild(link);
+    """
+
+    return safe_execute(script, href=href, attrs=attrs)
+
+
+def link_js(src: str):
+    """Link JavaScript library."""
+    script = """
+        'use strict';
+        
+        const src = "$$src";
+        let script = document.createElement("script");
+        script.src = src;
+
+        document.head.appendChild(script);
+    """
+
+    return safe_execute(script, src=src)
+
+
+def load_css(style: str, attrs: dict = None):
+    """Create new style element and add it to the page."""
+    attrs = attrs or {}
+
+    script = """
+        'use strict'
+        
+        const style = `$$style`;
+        const attributes = $$attrs || {};
+        
+        let id = attributes.id;
+        let elem_exists = id ? $(`style#${id}`).length > 0 : false;
+        
+        let e = elem_exists ? document.querySelector(`style#${id}`)
+                            : document.createElement(\"style\");
+        
+        $(e).text(`${style}`).attr('type', 'text/css');
+        
+        Object.entries(attributes)
+            .forEach( ([attr, val]) => $(e).attr(attr, val) );
+
+        if (!elem_exists) document.head.appendChild(e);
+    """
+
+    return safe_execute(script, style=style, attrs=attrs)
+
+
+def load_js(script: str, attrs: dict = None):
+    """Create new script element and add it to the page."""
+    attrs = attrs or {}
+
+    # escape dollar signs inside ticks and ticks
+    js = script \
+        .replace('`', '\`') \
+        .replace('${', '\${')
+
+    script = """
+        'use strict';
+    
+        const script = `$$js`;
+        const attributes = $$attrs || {};
+        
+        let id = attributes.id;
+        let elem_exists = id ? $(`script#${id}`).length > 0 : false;
+        
+        let e = elem_exists ? document.querySelector(`script#${id}`)
+                            : document.createElement(\"script\");
+        
+        $(e).text(`${script}`).attr('type', 'text/javascript');
+        
+        Object.entries(attributes)
+            .forEach( ([attr, val]) => $(e).attr(attr, val) );
+
+        if (!elem_exists) document.head.appendChild(e);
+    """
+
+    return safe_execute(script, js=js, attrs=attrs)
+
+
 def enable_nbextension(nbextension):
     """Enable Jupyter nbextension."""
     script = """
