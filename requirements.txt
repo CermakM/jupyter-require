@@ -2,7 +2,7 @@ ipython
 ipykernel
 
 # compression
-cssompressor
+csscompressor
 
 # logging
 daiquiri

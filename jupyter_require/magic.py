@@ -31,11 +31,11 @@ from IPython.core.magic import magics_class
 from IPython.core.magic import Magics
 from IPython.core.magic import needs_local_scope
 
-from .core import link_css
-from .core import link_js
-from .core import load_js
-from .core import load_css
 from .core import require
+from .notebook import link_css
+from .notebook import link_js
+from .notebook import load_js
+from .notebook import load_css
 
 
 @magics_class
