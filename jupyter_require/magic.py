@@ -73,14 +73,14 @@ class RequireJSMagic(Magics):
         return link_js(line)
 
     @cell_magic
-    def load_style(self, line: str, cell: str):
+    def load_css(self, line: str, cell: str):
         """Create new style element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
         return load_css(cell, attributes)
 
     @cell_magic
-    def load_script(self, line: str, cell: str):
+    def load_js(self, line: str, cell: str):
         """Create new script element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
