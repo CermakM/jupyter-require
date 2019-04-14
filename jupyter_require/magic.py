@@ -31,11 +31,33 @@ from IPython.core.magic import magics_class
 from IPython.core.magic import Magics
 from IPython.core.magic import needs_local_scope
 
+from jupyter_tools.utils import sanitize_namespace
+
+from .core import execute_with_requirements
 from .core import require
+
+from .core import JSTemplate
+
 from .notebook import link_css
 from .notebook import link_js
 from .notebook import load_js
 from .notebook import load_css
+
+
+def activate_js_syntax_highlight(regex: str = 'require'):
+    """Activates syntax highlighting for the `%%require` cells."""
+    script = """
+      codecell.CodeCell.options_default.highlight_modes['magic_text/javascript'] = {'reg':[/^%%$$regex/]};
+      
+      Jupyter.notebook.events.one('kernel_ready.Kernel', function(){
+          Jupyter.notebook.get_cells().map(function(cell){
+              if (cell.cell_type == 'code'){ cell.auto_highlight(); } }) ;
+      });
+      
+      console.debug("JavaScript syntax highlight activated for '%%$$regex'.");
+    """
+    
+    return execute_with_requirements(script, required=['notebook/js/codecell'], regex=regex)
 
 
 @magics_class
@@ -44,6 +66,11 @@ class RequireJSMagic(Magics):
 
     Links JavaScript libraries to Jupyter Notebook.
     """
+
+    def __init__(self, *args, **kwargs):
+        super(RequireJSMagic, self).__init__(*args, **kwargs)
+
+        activate_js_syntax_highlight()
 
     @needs_local_scope
     @line_magic
@@ -61,6 +88,31 @@ class RequireJSMagic(Magics):
             .split(sep=' ')
 
         return require(lib, path)
+
+    @needs_local_scope
+    @cell_magic
+    def require(self, line: str, cell: str, local_ns=None):
+        """Execute current JS cell with requirements.
+
+        The required libraries specified in parameters have to be defined and loaded in advance. `require` line magic can be used for that purpose.
+
+        :param line: str, requirements separated by spaces
+        :param cell: str, script to be executed
+        :param local_ns: current cell namespace [optional]
+        """
+        user_ns = self.shell.user_ns
+        user_ns.update(local_ns or dict())
+
+        ns = sanitize_namespace(user_ns, options={'warnings': False})
+
+        # do not use safe substitution here
+        script = JSTemplate(cell).substitute(**ns)
+
+        required = line \
+            .strip() \
+            .split(sep=' ')
+
+        return execute_with_requirements(script, required)
 
     @line_magic
     def link_css(self, line: str):

@@ -24,6 +24,7 @@
 """Jupyter library and magic extension for managing linked JavaScript and CSS scripts and styles."""
 
 import logging
+import time
 
 import daiquiri
 import daiquiri.formatter
@@ -80,6 +81,7 @@ def load_ipython_extension(ipython):
         return
 
     register_comm_targets(ipython.kernel)
+    time.sleep(0.5)  # let the JS register the targets
 
     # fontawesome fas icon
     link_css(

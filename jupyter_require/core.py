@@ -201,6 +201,7 @@ class JSTemplate(string.Template):
         super().__init__(template)
 
         self._safe_substitute = self.safe_substitute
+        self._substitute = self.substitute
 
         # prototype
         def safe_substitute(*args, **kws):
@@ -212,7 +213,18 @@ class JSTemplate(string.Template):
 
             return self._safe_substitute(*args, **kwargs)
 
+        # prototype
+        def substitute(*args, **kws):
+            """Substitute JS template variables."""
+            kwargs = {
+                key: sub if sub is not None else 'null'
+                for key, sub in kws.items()
+            }
+
+            return self._substitute(*args, **kwargs)
+
         self.safe_substitute = safe_substitute
+        self.substitute = substitute
 
 
 def create_comm(target: str,

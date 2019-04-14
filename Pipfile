@@ -7,6 +7,9 @@ name = "pypi"
 ipython = "*"
 ipykernel = "*"
 jupyter_contrib_nbextensions = "*"  # needed by pipenv shell
+
+jupyter-tools = {editable = true,git = "git://github.com/CermakM/jupyter-tools"}
+
 daiquiri = "*"
 csscompressor = "*"
 
