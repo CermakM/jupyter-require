@@ -35,6 +35,7 @@ from jupyter_tools.utils import sanitize_namespace
 
 from .core import execute_with_requirements
 from .core import require
+from .core import safe_execute
 
 from .core import JSTemplate
 
@@ -113,6 +114,28 @@ class RequireJSMagic(Magics):
             .split(sep=' ')
 
         return execute_with_requirements(script, required)
+
+    @cell_magic
+    def define(self, line: str, cell: str):
+        """Define new module from the current cell content."""
+
+    @line_magic
+    def undef(self, line: str):
+        """Undefine required libraries.
+
+        :param line: str, libs to undefine separated by spaces
+        """
+        libs = line \
+            .strip() \
+            .split(sep=' ')
+        
+        script = """
+            $$to_undefine.forEach((lib) => {
+                requirejs.undef(lib);
+            });
+        """
+
+        return safe_execute(script, to_undefine=libs)
 
     @line_magic
     def link_css(self, line: str):
