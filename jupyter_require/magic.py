@@ -34,7 +34,7 @@ from IPython.core.magic import needs_local_scope
 from jupyter_tools.utils import sanitize_namespace
 
 from .core import execute_with_requirements
-from .core import require
+from .core import require as requirejs
 from .core import safe_execute
 
 from .core import JSTemplate
@@ -134,6 +134,9 @@ class RequireJSMagic(Magics):
                 requirejs.undef(lib);
             });
         """
+
+        for lib in libs:
+            requirejs.pop(lib)
 
         return safe_execute(script, to_undefine=libs)
 
