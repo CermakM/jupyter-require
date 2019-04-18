@@ -42,20 +42,23 @@ def link_css(href: str, attrs: dict = None):
         
         const href = "$$href";
         const attributes = $$attrs || {};
-        
-        let link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.type = "text/css";
-        try {
-            link.href = requirejs.toUrl(href, 'css');
-        } catch (error) {
-            link.href = href;
+
+        if ( !$(`link[href*="${href}"]`).length ) {
+            let link = document.createElement("link");
+
+            link.rel = "stylesheet";
+            link.type = "text/css";
+            try {
+                link.href = requirejs.toUrl(href, 'css');
+            } catch (error) {
+                link.href = href;
+            }
+            
+            Object.entries(attributes)
+                .forEach( ([attr, val]) => $(link).attr(attr, val) );
+            
+            document.head.appendChild(link);
         }
-        
-        Object.entries(attributes)
-            .forEach( ([attr, val]) => $(link).attr(attr, val) );
-        
-        document.head.appendChild(link);
     """
 
     return safe_execute(script, href=href, attrs=attrs)
@@ -65,12 +68,15 @@ def link_js(src: str):
     """Link JavaScript library."""
     script = """
         'use strict';
-        
-        const src = "$$src";
-        let script = document.createElement("script");
-        script.src = src;
 
-        document.head.appendChild(script);
+        const src = "$$src";
+        
+        if ( !$(`script[src*="${src}"]`) ) {
+            let script = document.createElement("script");
+            script.src = src;
+
+            document.head.appendChild(script);
+        }
     """
 
     return safe_execute(script, src=src)
