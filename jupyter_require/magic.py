@@ -128,9 +128,11 @@ class RequireJSMagic(Magics):
         libs = line \
             .strip() \
             .split(sep=' ')
-        
+
         script = """
-            $$to_undefine.forEach((lib) => {
+            const libs = $$to_undefine;
+
+            libs.forEach((lib) => {
                 requirejs.undef(lib);
             });
         """
@@ -139,6 +141,32 @@ class RequireJSMagic(Magics):
             requirejs.pop(lib)
 
         return safe_execute(script, to_undefine=libs)
+
+    @line_magic
+    def reload(self, line: str):
+        """Reload libraries.
+
+        This is especially useful when needed to reload
+        script after making changes to it.
+
+        :param line: str, libs to reload separated by spaces
+        """
+        libs = line \
+            .strip() \
+            .split(sep=' ')
+
+        script = """
+            const libs = $$to_reload;
+
+            libs.forEach((lib) => {
+                requirejs.undef(lib);
+            });
+            requirejs(libs, () => {
+                console.debug(`Libraries ${libs} reloaded.`);
+            });
+        """
+
+        return safe_execute(script, to_reload=libs)
 
     @line_magic
     def link_css(self, line: str):
