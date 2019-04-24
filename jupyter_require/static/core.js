@@ -312,8 +312,6 @@ define([
             // This error occurs mainly when user provides invalid script
             // when wrapping to an AsyncFunction
             handle_error(err);  // handle to append it to the cell output
-
-            throw err;
         }
     };
 
