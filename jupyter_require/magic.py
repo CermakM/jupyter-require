@@ -126,7 +126,7 @@ class RequireJSMagic(Magics):
             raise ValueError("Module name required but not provided.")
 
         script = """
-        const module = '$$name';
+        const module = '$$module';
 
         // overwrite any previously defined modules with the same name
         requirejs.undef(module);
