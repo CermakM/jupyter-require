@@ -88,7 +88,7 @@ class RequireJSMagic(Magics):
             .strip() \
             .split(sep=' ')
 
-        return require(lib, path)
+        return requirejs(lib, path)
 
     @needs_local_scope
     @cell_magic
@@ -117,7 +117,26 @@ class RequireJSMagic(Magics):
 
     @cell_magic
     def define(self, line: str, cell: str):
-        """Define new module from the current cell content."""
+        """Define new module from the current cell content.
+        
+        :param line: module name
+        :param cell: script to be defined as module by the module name
+        """
+        if not line:
+            raise ValueError("Module name required but not provided.")
+
+        script = """
+        const module = '$$name';
+
+        // overwrite any previously defined modules with the same name
+        requirejs.undef(module);
+
+        define(module, function(require) {
+            $$cell
+        });
+        """
+
+        return safe_execute(script, cell=cell, module=line)
 
     @line_magic
     def undef(self, line: str):
