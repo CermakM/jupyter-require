@@ -91,9 +91,6 @@ setup(
     ],
 
     install_requires=REQUIREMENTS,
-    dependency_links=[
-        "jupyter-tools @ git://github.com/CermakM/jupyter-tools.git@master"
-    ],
 
     cmdclass=cmdclass,
 

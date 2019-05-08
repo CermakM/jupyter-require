@@ -54,17 +54,12 @@ To install jupyter-require Python package:
     pip install jupyter-require
 
 
-And to install the nbextension itself and enable it, we have supplied a helper functions in the `jupyter-tools <https://github.com/CermakM/jupyter-require>`_ ``utils`` module.
+And to install the nbextension itself and enable it, we have supplied a helper functions in the `jupyter-nbutils <https://github.com/CermakM/jupyter-nbutils>`_ ``utils`` module.
 
-
-.. code-block:: bash
-
-    # this is a very young project and there hasn't been time to turn it into a package yet
-    pip install -e "git://github.com/CermakM/jupyter-tools#egg=jupyter-tools"
 
 .. code-block:: python
 
-    from jupyter_tools import utils
+    from jupyter_nbutils import utils
 
     # install jupyter-require extension
     utils.install_nbextension('jupyter_require', overwrite=True)  # note there is an underscore, it's Python module name

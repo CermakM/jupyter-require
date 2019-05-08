@@ -31,7 +31,7 @@ from IPython.core.magic import magics_class
 from IPython.core.magic import Magics
 from IPython.core.magic import needs_local_scope
 
-from jupyter_tools.utils import sanitize_namespace
+from jupyter_nbutils.utils import sanitize_namespace
 
 from .core import execute_with_requirements
 from .core import require as requirejs

@@ -8,4 +8,5 @@ csscompressor
 daiquiri
 
 # nbextensions
+jupyter-nbutils
 jupyter_contrib_nbextensions
