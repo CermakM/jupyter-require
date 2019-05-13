@@ -71,7 +71,7 @@ def link_js(src: str):
 
         const src = "$$src";
         
-        if ( !$(`script[src*="${src}"]`) ) {
+        if ( $(`script[src*="${src}"]`).length <= 0 ) {
             let script = document.createElement("script");
             script.src = src;
 
