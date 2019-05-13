@@ -288,7 +288,9 @@ define([
     let execute_script = async function(script, required, params) {
 
         // get rid of invalid characters
-        params = params.map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""));
+        params = params
+            .map((p) => p.replace(/[|&$%@"<>()+-.,;]/g, ""))
+            .filter((d) => d.trim().length);
         // expose element to the user script
         params.push('element');
 
