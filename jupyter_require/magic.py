@@ -27,6 +27,7 @@ import re
 
 from IPython.core.magic import cell_magic
 from IPython.core.magic import line_magic
+from IPython.core.magic import line_cell_magic
 from IPython.core.magic import magics_class
 from IPython.core.magic import Magics
 from IPython.core.magic import needs_local_scope
@@ -74,28 +75,19 @@ class RequireJSMagic(Magics):
         activate_js_syntax_highlight()
 
     @needs_local_scope
-    @line_magic
-    def require(self, line: str, local_ns=None):
-        """Link required JS library.
+    @line_cell_magic
+    def require(self, line: str, cell: str = None, local_ns=None):
+        """Execute current JS cell with requirements or link required JS library.
+
+        Line magic: Link required JS library.
 
         :param line: string in form '<key> <path>'
         :param local_ns: current cell namespace [optional]
-        """
-        user_ns = self.shell.user_ns
-        user_ns.update(local_ns or dict())
 
-        lib, path = line \
-            .strip() \
-            .split(sep=' ')
+        Cell magic: Execute current JS cell with requirements 
 
-        return requirejs(lib, path)
-
-    @needs_local_scope
-    @cell_magic
-    def require(self, line: str, cell: str, local_ns=None):
-        """Execute current JS cell with requirements.
-
-        The required libraries specified in parameters have to be defined and loaded in advance. `require` line magic can be used for that purpose.
+        The required libraries specified in parameters have to be defined and loaded in advance,
+        `require` line magic can be used for that purpose.
 
         :param line: str, requirements separated by spaces
         :param cell: str, script to be executed
@@ -103,6 +95,19 @@ class RequireJSMagic(Magics):
         """
         user_ns = self.shell.user_ns
         user_ns.update(local_ns or dict())
+
+        if cell is None:
+            if not line:
+                return requirejs.display_context()
+
+            lib, path = line \
+                .strip() \
+                .split(sep=' ')
+            
+            if not path:
+                raise ValueError("Path to the library was not defined correctly.")
+
+            return requirejs(lib, path)
 
         ns = sanitize_namespace(user_ns, options={'warnings': False})
 
@@ -157,7 +162,10 @@ class RequireJSMagic(Magics):
         """
 
         for lib in libs:
-            requirejs.pop(lib)
+            try:
+                requirejs.pop(lib)
+            except KeyError:
+                pass
 
         return safe_execute(script, to_undefine=libs)
 
