@@ -263,12 +263,12 @@ define([
      * @param output_area {OutputArea} - current code cell's output area
      * @returns {Promise<any>}
      */
-    let execute_with_requirements = function(func, required, output_area) {
+    let execute_with_requirements = function(func, required, context, output_area) {
         return new Promise(async (resolve, reject) => {
             let element = display.create_output_subarea(output_area);
 
             requirejs(required, (...args) => {
-                func.apply(output_area, [...args, element])
+                func.apply(output_area, [...args, element, context])
                     .then(() => {
                         resolve(element);
                     }).catch(reject);
@@ -297,17 +297,24 @@ define([
         let cell = this;  // current CodeCell
         let output_area = cell.output_area;
 
+        let context = {
+            cell: cell,
+            output_area: output_area
+        }
+
+        params.push('context')
+
         try {
             let wrapped = new AsyncFunction(...params, script.toString());
-            let execute = _.partial(execute_with_requirements, wrapped, required);
+            let execute = _.partial(execute_with_requirements, wrapped, required, context);
 
             await Promise.all(check_requirements(required))
                 .then(async (r) => {
                     console.debug(r);
-                    await display.append_javascript(execute, output_area).then(
+                    await display.append_javascript(execute, output_area, context).then(
                         (r) => console.debug("Output appended.", r)
                     );
-                    events.trigger('require.JupyterRequire', {cell: cell, require: required});
+                    events.trigger('require.JupyterRequire', {cell: cell, require: required, context: context});
                 })
                 .catch(handle_error);
         } catch(err) {

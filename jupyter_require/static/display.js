@@ -143,8 +143,8 @@ define(['underscore'], function(_) {
         return toinsert;
     };
 
-    let append_javascript = async function(js, output_area) {
-        let toinsert = await js(output_area);
+    let append_javascript = async function(js, output_area, context) {
+        let toinsert = await js(output_area, context);
         let display_data = append_display_data(js, toinsert, output_area);
 
         return append_output(MIME_JAVASCRIPT, display_data, toinsert, output_area);
