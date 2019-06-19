@@ -75,7 +75,7 @@ define([
      *
      * @returns {CodeCell}
      */
-    function get_executed_cell() {
+    Notebook.prototype.get_executed_cell = function() {
         let cell = Jupyter.notebook.get_running_cells()[0];
 
         if (!cell) {
@@ -176,7 +176,7 @@ define([
             traceback: traceback,
             output_type: 'error'
         };
-        let cell = get_executed_cell();
+        let cell = Jupyter.notebook.get_executed_cell();
 
         // append stack trace to the cell output element
         cell.output_area.append_output(output_error);
@@ -338,7 +338,7 @@ define([
                         console.debug('Comm: ', comm, 'message: ', msg);
 
                         // get running cell or fall back to current cell
-                        let cell = get_executed_cell();
+                        let cell = Jupyter.notebook.get_executed_cell();
 
                         const d = msg.content.data;
                         return await execute_script.call(cell, d.script, d.require, d.parameters);
@@ -358,7 +358,7 @@ define([
                         console.debug('Comm: ', comm, 'message: ', msg);
 
                         // get running cell or fall back to current cell
-                        let cell = get_executed_cell();
+                        let cell = Jupyter.notebook.get_executed_cell();
                         let output_area = cell.output_area;
 
                         const script = msg.content.data.script;
