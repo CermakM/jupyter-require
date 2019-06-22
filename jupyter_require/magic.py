@@ -49,16 +49,33 @@ from .notebook import load_css
 def activate_js_syntax_highlight(regex: str = 'require'):
     """Activates syntax highlighting for the `%%require` cells."""
     script = """
-      codecell.CodeCell.options_default.highlight_modes['magic_text/javascript'] = {'reg':[/^%%$$regex/]};
-      
-      Jupyter.notebook.events.one('kernel_ready.Kernel', function(){
-          Jupyter.notebook.get_cells().map(function(cell){
-              if (cell.cell_type == 'code'){ cell.auto_highlight(); } }) ;
-      });
-      
-      console.debug("JavaScript syntax highlight activated for '%%$$regex'.");
+    const magic = $$regex
+    const regex = new RegExp(`^%%${magic}`)
+
+    let modes = codecell.CodeCell.options_default.highlight_modes
+
+    const mimes = ['magic_text/javascript', 'magic_javascript']
+
+    mimes.forEach( (m) => {
+        let mode = modes[m] || {}
+
+        if ( _.isUndefined(mode.reg) )
+            mode.reg = [regex]
+        else
+            mode.reg.push(regex)
+
+        modes[m] = mode
+    });
+
+    Jupyter.notebook.events.one('kernel_ready.Kernel', function() {
+      Jupyter.notebook.get_cells().map( (cell) => {
+          if (cell.cell_type == 'code') cell.auto_highlight()
+      })
+    });
+
+    console.debug(`JavaScript syntax highlight activated for '${regex}'.`)
     """
-    
+
     return execute_with_requirements(script, required=['notebook/js/codecell'], regex=regex)
 
 
