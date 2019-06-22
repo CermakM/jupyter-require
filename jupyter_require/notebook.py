@@ -70,10 +70,11 @@ def link_js(src: str):
         'use strict';
 
         const src = "$$src";
-        
-        if ( $(`script[src*="${src}"]`).length <= 0 ) {
+
+        if ( $("script").filter((i, e) => e.src.includes(src)).length <= 0 ) {
             let script = document.createElement("script");
             script.src = src;
+            script.type = "text/javascript";
 
             document.head.appendChild(script);
         }
