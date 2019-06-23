@@ -112,17 +112,21 @@ class RequireJS(object):
                 .replace(/,/g, '<br>'));
         """))
 
-    def config(self, libs: dict, shim: dict = None):
+    def config(self, paths: dict, shim: dict = None):
         """Links JavaScript libraries to Jupyter Notebook.
 
-        The libraries are linked using requireJS such as:
+        This is Python binding for JS RequireJS `require.config` call.
 
-        ```javascript
-        require.config({
-            paths: {
+        For convenience, the paths and shim are split into two separate arguments. If you
+        with to use the function in a more standard JS way, consider the following example.
+
+        Example:
+        ```
+        require.config(**{
+            "paths": {
                 <key>: <path>
             },
-            shim: {
+            "shim": {
                 <key>: [<dependencies>]
             }
         });
@@ -130,7 +134,7 @@ class RequireJS(object):
 
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
-        self.__LIBS.update(libs)
+        self.__LIBS.update(paths)
         self.__SHIM.update(shim or {})
 
         # data to be passed to require.config()
@@ -185,7 +189,7 @@ class RequireJS(object):
             callback=self._store_callback)
 
         # initial configuration
-        self.config(libs={})
+        self.config(paths={})
 
     def _store_callback(self, msg):
         """Store callback from comm."""
@@ -193,7 +197,7 @@ class RequireJS(object):
 
 
 class JSTemplate(string.Template):
-    """Custom d3 string template."""
+    """Custom JS string template."""
 
     delimiter = "$$"
 

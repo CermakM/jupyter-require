@@ -35,15 +35,15 @@ from IPython.core.magic import needs_local_scope
 from jupyter_nbutils.utils import sanitize_namespace
 
 from .core import execute_with_requirements
-from .core import require as requirejs
+from .core import require
 from .core import safe_execute
 
 from .core import JSTemplate
 
-from .notebook import link_css
-from .notebook import link_js
-from .notebook import load_js
-from .notebook import load_css
+from .notebook import link_css as _link_css
+from .notebook import load_css as _load_css
+from .notebook import link_js as _link_js
+from .notebook import load_js as _load_js
 
 
 def activate_js_syntax_highlight(regex: str = 'require'):
@@ -93,7 +93,7 @@ class RequireJSMagic(Magics):
 
     @needs_local_scope
     @line_cell_magic
-    def require(self, line: str, cell: str = None, local_ns=None):
+    def requirejs(self, line: str, cell: str = None, local_ns=None):
         """Execute current JS cell with requirements or link required JS library.
 
         Line magic: Link required JS library.
@@ -115,7 +115,7 @@ class RequireJSMagic(Magics):
 
         if cell is None:
             if not line:
-                return requirejs.display_context()
+                return require.display_context()
 
             lib, path = line \
                 .strip() \
@@ -124,7 +124,7 @@ class RequireJSMagic(Magics):
             if not path:
                 raise ValueError("Path to the library was not defined correctly.")
 
-            return requirejs(lib, path)
+            return require(lib, path)
 
         ns = sanitize_namespace(user_ns, options={'warnings': False})
 
@@ -180,15 +180,15 @@ class RequireJSMagic(Magics):
 
         for lib in libs:
             try:
-                requirejs.pop(lib)
+                require.pop(lib)
             except KeyError:
                 pass
 
         return safe_execute(script, to_undefine=libs)
 
     @line_magic
-    def reload(self, line: str):
-        """Reload libraries.
+    def reloadjs(self, line: str):
+        """Reload JS libraries.
 
         This is especially useful when needed to reload
         script after making changes to it.
@@ -215,26 +215,26 @@ class RequireJSMagic(Magics):
     @line_magic
     def link_css(self, line: str):
         """Link CSS stylesheet."""
-        return link_css(line)
+        return _link_css(line)
 
     @line_magic
     def link_js(self, line: str):
         """Link JavaScript library."""
-        return link_js(line)
+        return _link_js(line)
 
     @cell_magic
     def load_css(self, line: str, cell: str):
         """Create new style element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
-        return load_css(cell, attributes)
+        return _load_css(cell, attributes)
 
     @cell_magic
     def load_js(self, line: str, cell: str):
         """Create new script element and add it to the page."""
         attributes: dict = self._parse_attributes(line)
 
-        return load_js(cell, attributes)
+        return _load_js(cell, attributes)
 
     @staticmethod
     def _parse_attributes(line: str) -> dict:
