@@ -46,7 +46,7 @@ from .notebook import link_js as _link_js
 from .notebook import load_js as _load_js
 
 
-def activate_js_syntax_highlight(regex: str = 'require'):
+def activate_js_syntax_highlight(regex: str = 'requirejs'):
     """Activates syntax highlighting for the `%%require` cells."""
     script = """
     const magic = $$regex
