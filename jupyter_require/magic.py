@@ -50,7 +50,7 @@ def activate_js_syntax_highlight(regex: str = 'requirejs'):
     """Activates syntax highlighting for the `%%require` cells."""
     script = """
     const magic = $$regex
-    const regex = new RegExp(`^%%${magic}`)
+    const regex = RegExp(`^%%${magic}`)
 
     let modes = codecell.CodeCell.options_default.highlight_modes
 
