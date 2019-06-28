@@ -267,12 +267,18 @@ define([
         return new Promise(async (resolve, reject) => {
             let element = display.create_output_subarea(output_area);
 
-            requirejs(required, (...args) => {
-                func.apply(output_area, [...args, element, context])
-                    .then(() => {
-                        resolve(element);
-                    }).catch(reject);
-            });
+            try {
+                requirejs(required, (...args) => {
+                    func.apply(output_area, [...args, element, context])
+                        .then(() => {
+                            resolve(element);
+                        }).catch(reject);
+                });
+            } catch(err) {
+                // catch any exception thrown by RequireJS (like "Mismatched anonymous define() module")
+                // to avoid deadlocking the interpreter
+                reject(err);
+            }
             setTimeout(reject, 5000, new Error("Script execution timeout."));
         });
     };
