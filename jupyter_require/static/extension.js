@@ -72,6 +72,8 @@ define(function(require) {
     function finalize_cells() {
         let cells = get_display_cells();
 
+        events.trigger('before_finalize.JupyterRequire')
+
         return Promise.all(cells.map((cell) => display.finalize_cell_outputs(cell)))
             .then(() => {
                 Jupyter.notebook.metadata.finalized = {
@@ -85,6 +87,8 @@ define(function(require) {
                 console.error();
                 events.trigger('notebook_save_failed.Notebook', err);
         });
+
+        events.trigger('after_finalize.JupyterRequire')
     }
 
 
