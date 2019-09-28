@@ -54,7 +54,16 @@ To install jupyter-require Python package:
     pip install jupyter-require
 
 
-And to install the nbextension itself and enable it, we have supplied a helper functions in the `jupyter-nbutils <https://github.com/CermakM/jupyter-nbutils>`_ ``utils`` module.
+[Optional] This step should be optional, but if you find out that the extension did not load properly (or at all),
+try to execute the following commands first.
+
+.. code-block:: bash
+
+    jupyter nbextension install --user --py jupyter_require
+
+
+You can do all that from the python interpreter as well.
+To install the nbextension itself and enable it, we have supplied a helper functions in the `jupyter-nbutils <https://github.com/CermakM/jupyter-nbutils>`_ ``utils`` module.
 
 
 .. code-block:: python
@@ -81,7 +90,10 @@ In `Jupyter`_ notebooks:
 
 .. code-block:: python
 
+    # Applicable for version <=0.3.0
     %load_ext jupyter_require
+
+> NOTE: Since the version 0.3.1 this extension is autoloaded and this step is no longer required
 
 
 Loading libraries
@@ -91,13 +103,13 @@ Loading required libraries is now as simple as:
 
 .. code-block:: python
 
-    %require d3 https://d3js.org/d3.v5.min
-    %require d3-hierarchy https://d3js.org/d3-hierarchy.v1.min
+    %requirejs d3 https://d3js.org/d3.v5.min
+    %requirejs d3-hierarchy https://d3js.org/d3-hierarchy.v1.min
 
     NOTE: Note that the path does **NOT** contain the `.js` file extension. This is `requireJS`_ standard.
 
 
-The ``%require`` is *jupyter magic command* and the rest are the parameters. The command takes a lib name and path.
+The ``%requirejs`` is *jupyter magic command* and the rest are the parameters. The command takes a lib name and path.
 
 
 Creating custom style elements
