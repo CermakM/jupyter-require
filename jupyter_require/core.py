@@ -243,11 +243,16 @@ def create_comm(target: str,
     return comm
 
 
-def execute_with_requirements(script: str, required: Union[list, dict], configured=True, **kwargs):
+def execute_with_requirements(script: str, required: Union[list, dict], silent=False, configured=True, **kwargs):
     """Link required libraries and execute JS script.
 
     :param script: JS script to be executed
     :param required: list or dict (for requireJS config) of requirements
+    :param silent: whether the script should be executed in the silent mode
+
+        If the script is executed as "silent", it does not run in a cell context
+        and therefore it is not stored and the output is hidden from the user
+
     :param configured: bool, whether requirements are already configured
 
         This speeds up the execution, so if the requirements are already configured,
@@ -265,7 +270,8 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
             raise TypeError(
                 f"Attribute `required` expected to be dict, got {type(required)}.")
 
-    required: list = required if isinstance(required, list) else list(required.keys())
+    required: list = required if isinstance(
+        required, list) else list(required.keys())
 
     params = kwargs.pop('params', []) or required
     params = list(map(lambda s: s.rsplit('/')[-1], params))
@@ -274,6 +280,7 @@ def execute_with_requirements(script: str, required: Union[list, dict], configur
 
     data = {
         'script': script,
+        'silent': silent,
         'require': required,
         'parameters': params,
     }
@@ -324,31 +331,6 @@ require = RequireJS()
 require.__doc__ = RequireJS.__call__.__doc__
 
 
-def _handle_comms_registered(*args, **kwargs):
-    """Handle comms_registered.JupyterRequire event."""
-    logger.debug("Comms registered.")
-
-
-def _handle_extension_loaded(*args, **kwargs):
-    """Handle extension_loaded.JupyterRequire event."""
-    logger.debug("Extension loaded.")
-
-    # Jupyter discards promises on window reload,
-    # so comms have to be re-initialized
-    require._initialize_comms()
-
-    msg = "Comms initialized."
-    logger.debug(msg)
-
-    return msg
-
-
-_event_handle_map = {
-    'comms_registered': _handle_comms_registered,
-    'extension_loaded': _handle_extension_loaded
-}
-
-
 def communicate(comm, open_msg):
     """Handle messages from Jupyter frontend."""
     _ = open_msg  # ignored
@@ -374,9 +356,7 @@ def communicate(comm, open_msg):
             event_type, namespace = event['type'], event['namespace']
 
             if namespace == 'JupyterRequire':
-                handle = _event_handle_map[event_type]
-
-                response['value'] = handle(event_data)
+                # response['value'] = ...  # TODO
                 response['success'] = True
 
             logger.debug("Success.")

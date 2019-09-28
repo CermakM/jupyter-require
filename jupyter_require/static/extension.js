@@ -145,10 +145,6 @@ define( function ( require ) {
 
             'extension_loaded.JupyterRequire': ( e, d ) => {
                 console.debug( "Extension loaded." );
-                // we can catch it, since this error occurs at the beginning
-                // only when the package has not been imported yet
-                core.communicate( e )
-                    .catch( ( err ) => console.warn( err.message ) );  // eat the stacktrace
             },
         } );
 
@@ -314,7 +310,7 @@ define( function ( require ) {
                     setTimeout( () => {
                         // autoload
                         load_extension()
-                            .then( () => kernel.execute( "%load_ext " + __extension__, {}, opts ) )
+                            .then( () => kernel.execute( "%reload_ext " + __extension__, {}, opts ) )
                             .then( () => {
                                 events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
                             } )
@@ -323,7 +319,7 @@ define( function ( require ) {
                     events.one( 'notebook_loaded.Notebook', () => {
                         // autoload
                         load_extension()
-                            .then( () => kernel.execute( "%load_ext " + __extension__, {}, opts ) )
+                            .then( () => kernel.execute( "%reload_ext " + __extension__, {}, opts ) )
                             .then( () => {
                                 events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
                             } )

@@ -75,7 +75,7 @@ def activate_js_syntax_highlight(regex: str = 'requirejs'):
     console.debug(`JavaScript syntax highlight activated for '${regex}'.`)
     """
 
-    return execute_with_requirements(script, required=['notebook/js/codecell'], regex=regex)
+    return execute_with_requirements(script, required=['notebook/js/codecell'], silent=True, regex=regex)
 
 
 @magics_class
@@ -119,9 +119,10 @@ class RequireJSMagic(Magics):
             lib, path = line \
                 .strip() \
                 .split(sep=' ')
-            
+
             if not path:
-                raise ValueError("Path to the library was not defined correctly.")
+                raise ValueError(
+                    "Path to the library was not defined correctly.")
 
             return require(lib, path)
 
@@ -139,7 +140,7 @@ class RequireJSMagic(Magics):
     @cell_magic
     def define(self, line: str, cell: str):
         """Define new module from the current cell content.
-        
+
         :param line: module name
         :param cell: script to be defined as module by the module name
         """

@@ -83,14 +83,6 @@ def load_ipython_extension(ipython):
     register_comm_targets(ipython.kernel)
     time.sleep(0.5)  # let the JS register the targets
 
-    # fontawesome fas icon
-    link_css(
-        "https://use.fontawesome.com/releases/v5.8.1/css/all.css",
-        attrs={
-            'integrity': "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
-            'crossorigin': "anonymous"
-        })
-
     # magic: %require
     ipython.register_magics(RequireJSMagic)
 
@@ -108,22 +100,10 @@ def register_comm_targets(kernel=None):
     kernel.comm_manager.register_target('communicate', communicate)
 
 
-def _handle_ipython():
-    """Register with the comm target at import."""
-    ipython = get_ipython()
-    if ipython is None:
-        return
-
-    load_ipython_extension(ipython)
-
-
 def _jupyter_nbextension_paths():
     return [{
         'section': 'notebook',
-        'src': 'static',  # FIXME when migrated to node.js
+        'src': 'static',
         'dest': 'jupyter-require',
         'require': 'jupyter-require/extension'
     }]
-
-
-_handle_ipython()
