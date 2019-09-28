@@ -93,7 +93,7 @@ In `Jupyter`_ notebooks:
     # Applicable for version <=0.3.0
     %load_ext jupyter_require
 
-> NOTE: Since the version 0.3.1 this extension is autoloaded and this step is no longer required
+    NOTE: Since the version 0.3.1 this extension is autoloaded and this step is no longer required
 
 
 Loading libraries
