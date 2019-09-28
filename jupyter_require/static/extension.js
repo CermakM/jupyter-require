@@ -20,10 +20,10 @@
  * For details please refer to: https://github.com/CermakM/jupyter-require
  */
 
-__extension__ = 'jupyter_require'
-
 define( function ( require ) {
     'use strict';
+
+    const __extension__ = 'jupyter_require'
 
     let _ = require( 'underscore' );
     let events = require( 'base/js/events' );
