@@ -20,16 +20,21 @@
  * For details please refer to: https://github.com/CermakM/jupyter-require
  */
 
+__extension__ = 'jupyter_require'
 
-define(function(require) {
+define( function ( require ) {
     'use strict';
 
-    let _       = require('underscore');
-    let events  = require('base/js/events');
-    let Jupyter = require('base/js/namespace');
+    let _ = require( 'underscore' );
+    let events = require( 'base/js/events' );
+    let Jupyter = require( 'base/js/namespace' );
 
-    let core    = require('./core');
-    let display = require('./display');
+    let core = require( './core' );
+    let display = require( './display' );
+
+    const params = {
+        init_delay: 1000
+    }
 
     /**
      * Get code cells with display data
@@ -40,11 +45,11 @@ define(function(require) {
         let cells = Jupyter.notebook.get_cells();
 
         return cells.filter(
-            (c) => {
+            ( c ) => {
                 return c.cell_type === 'code' &&
-                    c.output_area.outputs  &&
-                    c.output_area.outputs.some( d => d.output_type === 'display_data');
-            });
+                    c.output_area.outputs &&
+                    c.output_area.outputs.some( d => d.output_type === 'display_data' );
+            } );
     }
 
     /**
@@ -55,9 +60,9 @@ define(function(require) {
     function freeze_cells() {
         let cells = get_display_cells();
 
-        return Promise.all(cells.map((cell) => display.freeze_cell_outputs(cell)))
-            .then(() => console.debug("Successfully frozen cell outputs."))
-            .catch(console.error);
+        return Promise.all( cells.map( ( cell ) => display.freeze_cell_outputs( cell ) ) )
+            .then( () => console.debug( "Successfully frozen cell outputs." ) )
+            .catch( console.error );
     }
 
     /**
@@ -72,23 +77,23 @@ define(function(require) {
     function finalize_cells() {
         let cells = get_display_cells();
 
-        events.trigger('before_finalize.JupyterRequire')
+        events.trigger( 'before_finalize.JupyterRequire' )
 
-        return Promise.all(cells.map((cell) => display.finalize_cell_outputs(cell)))
-            .then(() => {
+        return Promise.all( cells.map( ( cell ) => display.finalize_cell_outputs( cell ) ) )
+            .then( () => {
                 Jupyter.notebook.metadata.finalized = {
-                    trusted   : Jupyter.notebook.trusted,
-                    timestamp : _.now(),
+                    trusted: Jupyter.notebook.trusted,
+                    timestamp: _.now(),
                 };
-            })
-            .then(() => Jupyter.notebook.save_notebook())
-            .then(() => console.debug("Successfully finalized cell outputs."))
-            .catch((err) => {
+            } )
+            .then( () => Jupyter.notebook.save_notebook() )
+            .then( () => console.debug( "Successfully finalized cell outputs." ) )
+            .catch( ( err ) => {
                 console.error();
-                events.trigger('notebook_save_failed.Notebook', err);
-        });
+                events.trigger( 'notebook_save_failed.Notebook', err );
+            } );
 
-        events.trigger('after_finalize.JupyterRequire')
+        events.trigger( 'after_finalize.JupyterRequire' )
     }
 
 
@@ -102,27 +107,27 @@ define(function(require) {
 
         const action = {
             icon: 'fa-shield-alt',  // a font-awesome class used on buttons, etc
-            help    : 'Save and Finalize',
-            help_index : 'fb',
-            handler : async function (env, event) {
+            help: 'Save and Finalize',
+            help_index: 'fb',
+            handler: async function ( env, event ) {
                 await finalize_cells();  // blocking call
 
-                if(event){
+                if ( event ) {
                     event.preventDefault();
                 }
                 return false;
-            } ,
+            },
         };
 
         // returns 'jupyter-require:save-and-finalize'
-        const full_action_name = Jupyter.actions.register(action, action_name, prefix);
+        const full_action_name = Jupyter.actions.register( action, action_name, prefix );
 
-        const btn_group = Jupyter.toolbar.add_buttons_group([full_action_name], prefix);
+        const btn_group = Jupyter.toolbar.add_buttons_group( [ full_action_name ], prefix );
 
         // position after the default save button
         // NOTE: This really IS id='save-notbook'
-        $('div#save-notbook.btn-group')
-            .after(btn_group);
+        $( 'div#save-notbook.btn-group' )
+            .after( btn_group );
     }
 
     /**
@@ -130,41 +135,41 @@ define(function(require) {
      *
      */
     function register_events() {
-        events.on('config.JupyterRequire', (e, d) => core.set_notebook_config(d.config));
-        events.on('require.JupyterRequire', (e, d) => core.set_cell_requirements(d.cell, d.require));
+        events.on( 'config.JupyterRequire', ( e, d ) => core.set_notebook_config( d.config ) );
+        events.on( 'require.JupyterRequire', ( e, d ) => core.set_cell_requirements( d.cell, d.require ) );
 
-        events.on({
-            'extension_loaded.JupyterRequire': (e, d) => {
-                console.debug("Extension loaded.");
-                // we can catch it, since this error occurs at the beginning
-                // only when the require package has not been imported yet
-                core.communicate(e)
-                    .catch((err) => console.warn(err.message));  // eat the stacktrace
+        events.on( {
+            'comms_registered.JupyterRequire': ( e, d ) => {
+                console.debug( "Comm targets registered." );
             },
 
-            'comms_registered.JupyterRequire': (e, d) => {
-                console.debug("Comm targets registered.");
-            }
-        });
+            'extension_loaded.JupyterRequire': ( e, d ) => {
+                console.debug( "Extension loaded." );
+                // we can catch it, since this error occurs at the beginning
+                // only when the package has not been imported yet
+                core.communicate( e )
+                    .catch( ( err ) => console.warn( err.message ) );  // eat the stacktrace
+            },
+        } );
 
-        events.on('execute.CodeCell', (e, d) => d.cell.running = true);
-        events.on('finished_execute.CodeCell', (e, d) => d.cell.running = false);
+        events.on( 'execute.CodeCell', ( e, d ) => d.cell.running = true );
+        events.on( 'finished_execute.CodeCell', ( e, d ) => d.cell.running = false );
 
-        events.on('output_added.OutputArea', (e, d) => {
+        events.on( 'output_added.OutputArea', ( e, d ) => {
             let display_data = d.output;
-            if (display_data.output_type !== 'display_data') return;
+            if ( display_data.output_type !== 'display_data' ) return;
 
-            if (display_data instanceof display.DisplayData || display_data.metadata.frozen === false) {
+            if ( display_data instanceof display.DisplayData || display_data.metadata.frozen === false ) {
                 display_data.freeze_output();
             } else {
-                if (_.isFunction(display_data.metadata.execute))
-                    display.append_javascript(display_data.metadata.execute, d.output_area).then(
-                        (r) => console.debug('Output appended: ', r)
+                if ( _.isFunction( display_data.metadata.execute ) )
+                    display.append_javascript( display_data.metadata.execute, d.output_area ).then(
+                        ( r ) => console.debug( 'Output appended: ', r )
                     );
             }
-        });
+        } );
 
-        events.on('before_save.Notebook', freeze_cells);
+        events.on( 'before_save.Notebook', freeze_cells );
 
         /* Finalization events
 
@@ -172,22 +177,22 @@ define(function(require) {
            in which finalization is needed, like app close/reload and
            session closed and halt.
         */
-        events.on({
+        events.on( {
             'kernel_dead.Session': async function () {
-                console.debug("Session is dead. Finalizing outputs...");
+                console.debug( "Session is dead. Finalizing outputs..." );
                 await finalize_cells();
             },
 
             'kernel_killed.Session': async function () {
-                console.debug("Session closed. Finalizing outputs...");
+                console.debug( "Session closed. Finalizing outputs..." );
                 await finalize_cells();
             },
 
             'kernel_dead.Kernel': async function () {
-                console.debug("Kernel is dead. Finalizing outputs...");
+                console.debug( "Kernel is dead. Finalizing outputs..." );
                 await finalize_cells();
             },
-        });
+        } );
     }
 
     /**
@@ -197,32 +202,32 @@ define(function(require) {
     function init_existing_cells() {
         let cells = get_display_cells();
 
-        cells.forEach(async (cell) => {
+        cells.forEach( async ( cell ) => {
             // mark frozen outputs
             let outputs = cell.output_area.outputs;
 
-            outputs.forEach((output) => {
-                if (output.metadata === undefined)
+            outputs.forEach( ( output ) => {
+                if ( output.metadata === undefined )
                     return;
-                if (output.metadata.frozen === true) {
-                    let element = $(output.element).find('.output_subarea');
+                if ( output.metadata.frozen === true ) {
+                    let element = $( output.element ).find( '.output_subarea' );
 
                     // convenience for user
-                    element.addClass('output_frozen');
+                    element.addClass( 'output_frozen' );
                 }
-            });
+            } );
 
             // check requirements
-            let required = core.get_cell_requirements(cell);
+            let required = core.get_cell_requirements( cell );
 
-            if (required.length > 0) {
-                Promise.all(core.check_requirements(required))
-                    .then((libs) => {
-                        console.debug("Success:", libs);
-                    }).catch((r) => new Error(r));
+            if ( required.length > 0 ) {
+                Promise.all( core.check_requirements( required ) )
+                    .then( ( libs ) => {
+                        console.debug( "Success:", libs );
+                    } ).catch( ( r ) => new Error( r ) );
             }
 
-        });
+        } );
     }
 
     /**
@@ -232,16 +237,16 @@ define(function(require) {
      * @param attrs {Object} - additional attributes, like integrity etc.
      *
      */
-    function link_css(url, attrs) {
-        let link = document.createElement("link");
+    function link_css( url, attrs ) {
+        let link = document.createElement( "link" );
 
         link.type = "text/css";
-        link.rel  = "stylesheet";
+        link.rel = "stylesheet";
         link.href = url;
 
-        Object.assign(link, attrs);
+        Object.assign( link, attrs );
 
-        document.getElementsByTagName("head")[0].appendChild(link);
+        document.getElementsByTagName( "head" )[ 0 ].appendChild( link );
     }
 
 
@@ -249,49 +254,86 @@ define(function(require) {
      * Load extension
      *
      */
-    function load_ipython_extension() {
-        return new Promise((resolve) => {
-            require([
-                'underscore',
-                'base/js/namespace',
-                'base/js/events',
-                './core',
-            ], function (_, Jupyter, events, core) {
+    function load_extension() {
+        return new Promise( ( resolve ) => {
 
-                const config = core.get_notebook_config();
+            const config = core.get_notebook_config();
+
+            const fas_url = "https://use.fontawesome.com/releases/v5.8.1/css/all.css";
+            link_css( fas_url, {
+                integrity: "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
+                crossOrigin: "anonymous"
+            } );
+
+            register_actions();
+
+            core.register_targets()
+                .then( console.debug );
+
+            if ( config !== undefined ) {
+                core.load_required_libraries( config )
+                    .then( () => init_existing_cells() )
+                    .then( () => {
+                        resolve();
+                    } )
+                    .catch( console.error );
+            }
+
+        } );
+    }
+
+
+    /**
+     * Load ipython extension
+     *
+     */
+    function load_ipython_extension() {
+        require( [
+            'underscore',
+            'base/js/namespace',
+            'base/js/events',
+            './core',
+        ], function ( _, Jupyter, events, core ) {
+            return new Promise( ( resolve ) => {
+
+                if ( !Jupyter.notebook ) {
+                    // we're some other view like dashboard, terminal, etc, so bail now
+                    return
+                }
 
                 register_events();
 
-                Jupyter.notebook.config.loaded.then(() => {
+                const kernel = Jupyter.notebook.kernel
+                const opts = {
+                    silent: true,
+                    store_history: false,
+                    exit_on_error: false
+                }
 
-                    const fas_url = "https://use.fontawesome.com/releases/v5.8.1/css/all.css";
-                    link_css(fas_url , {
-                            integrity   : "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
-                            crossOrigin : "anonymous"
-                    });
-
-                    register_actions();
-
-                    setTimeout(() => {
-                        core.register_targets()
-                            .then(console.debug);
-
-                        if (config !== undefined) {
-                            core.load_required_libraries(config)
-                                .then(() => init_existing_cells())
-                                .then(() => {
-                                    events.trigger('extension_loaded.JupyterRequire', {timestamp: _.now()});
-                                    resolve();
-                                })
-                                .catch(console.error);
-                        }
-                    }, 1000);
-                });
-            });
-        });
+                if ( Jupyter.notebook._fully_loaded ) {
+                    setTimeout( () => {
+                        // autoload
+                        load_extension()
+                            .then( () => kernel.execute( "%load_ext " + __extension__, {}, opts ) )
+                            .then( () => {
+                                events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
+                            } )
+                    }, params.init_delay );
+                } else {
+                    events.one( 'notebook_loaded.Notebook', () => {
+                        // autoload
+                        load_extension()
+                            .then( () => kernel.execute( "%load_ext " + __extension__, {}, opts ) )
+                            .then( () => {
+                                events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
+                            } )
+                    } );
+                }
+            } );
+        } );
     }
 
 
     return { load_ipython_extension: load_ipython_extension };
 
-});
+} );
