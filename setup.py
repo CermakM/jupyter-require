@@ -56,6 +56,7 @@ cmdclass['js'] = combine_commands(
         NAME + '/static/core.js',  # FIXME when migrated to nodes.js
         NAME + '/static/display.js',  # FIXME when migrated to nodes.js
         NAME + '/static/extension.js',
+        NAME + '/static/logger.js',  # FIXME when migrated to nodes.js
         # NAME + '/static/index.js',  # FIXME when migrated to nodes.js
     ]),
 )
