@@ -9,7 +9,7 @@ __title__ = "jupyter-require"
 __summary__ = "Jupyter nbextension for JavaScript execution and managing linked libraries and CSS stylesheets in Jupyter notebooks."
 __uri__ = "https://github.com/CermakM/jupyter-require"
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 __author__ = "Marek Cermak"
 __email__ = "macermak@redhat.com"
