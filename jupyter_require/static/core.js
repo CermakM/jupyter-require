@@ -25,13 +25,15 @@ define( [
     'underscore',
     'base/js/namespace',
     'base/js/events',
-    'notebook/js/notebook',
     'services/kernels/comm',
+    './logger',
     './display'
-], function ( _, Jupyter, events, notebook, comms, display ) {
+], function ( _, Jupyter, events, comms, Logger, display ) {
     'use strict';
 
-    let Notebook = notebook.Notebook;
+    const log = Logger()
+
+    let Notebook = Jupyter.Notebook;
 
     let comm_manager;
     let comm;
@@ -127,7 +129,7 @@ define( [
      * @returns {Array}
      */
     function check_requirements( required ) {
-        console.debug( "Checking required libraries: ", required );
+        log.debug( "Checking required libraries: ", required );
 
         let defined = [];  // array of promises
 
@@ -166,7 +168,7 @@ define( [
      * @param silent {boolean}
      */
     function handle_error( error, silent = false ) {
-        console.error( error );
+        log.error( error );
 
         if ( silent ) return
 
@@ -194,7 +196,7 @@ define( [
      * @param config {Object}  - requirejs configuration object
      */
     async function load_required_libraries( config ) {
-        console.debug( 'Require config: ', config );
+        log.debug( 'Require config: ', config );
 
         let libs = config.paths;
 
@@ -202,17 +204,17 @@ define( [
             return Promise.resolve( "No libraries to load." );
         }
 
-        console.log( "Loading required libraries:", libs );
+        log.log( "Loading required libraries:", libs );
 
         require.config( config );
 
-        console.log( "Linking required libraries:", libs );
+        log.log( "Linking required libraries:", libs );
 
         let defined = check_requirements( Object.keys( libs ) );
 
         return await Promise.all( defined ).then(
             ( values ) => {
-                console.log( 'Success: ', values );
+                log.log( 'Success: ', values );
                 events.trigger( 'config.JupyterRequire', { config: config } );
             } ).catch( handle_error );
     }
@@ -316,10 +318,10 @@ define( [
 
             await Promise.all( check_requirements( required ) )
                 .then( async ( r ) => {
-                    console.debug( r );
+                    log.debug( r );
                     if ( !silent ) {
                         await display.append_javascript( execute, context.output_area, context ).then(
-                            ( r ) => console.debug( "Output appended.", r )
+                            ( r ) => log.debug( "Output appended.", r )
                         );
                         events.trigger( 'require.JupyterRequire', { cell: this, require: required, context: context } );
                     } else {
@@ -342,10 +344,10 @@ define( [
         let _execute = new Promise( ( resolve ) => {
             comm_manager.register_target( 'execute',
                 ( comm, msg ) => {
-                    console.debug( 'Comm: ', comm, 'initial message: ', msg );
+                    log.debug( 'Comm: ', comm, 'initial message: ', msg );
 
                     comm.on_msg( async ( msg ) => {
-                        console.debug( 'Comm: ', comm, 'message: ', msg );
+                        log.debug( 'Comm: ', comm, 'message: ', msg );
 
                         // get running cell or fall back to current cell
                         let cell = Jupyter.notebook.get_executed_cell();
@@ -362,10 +364,10 @@ define( [
         let _safe_execute = new Promise( ( resolve ) => {
             comm_manager.register_target( 'safe_execute',
                 ( comm, msg ) => {
-                    console.debug( 'Comm: ', comm, 'initial message: ', msg );
+                    log.debug( 'Comm: ', comm, 'initial message: ', msg );
 
                     comm.on_msg( async ( msg ) => {
-                        console.debug( 'Comm: ', comm, 'message: ', msg );
+                        log.debug( 'Comm: ', comm, 'message: ', msg );
 
                         // get running cell or fall back to current cell
                         let cell = Jupyter.notebook.get_executed_cell();
@@ -373,10 +375,10 @@ define( [
 
                         const script = msg.content.data.script;
 
-                        console.debug( "Executing safe script: ", script );
+                        log.debug( "Executing safe script: ", script );
 
                         return await safe_execute( script, output_area )
-                            .then( () => console.debug( "Success." ) )
+                            .then( () => log.debug( "Success." ) )
                             .catch( handle_error );
                     } );
 
@@ -389,13 +391,13 @@ define( [
         let _config = new Promise( ( resolve ) => {
             comm_manager.register_target( 'config',
                 ( comm, msg ) => {
-                    console.debug( 'Comm: ', comm, 'initial message: ', msg );
+                    log.debug( 'Comm: ', comm, 'initial message: ', msg );
 
                     comm.on_msg( async ( msg ) => {
-                        console.debug( 'Comm: ', comm, 'message: ', msg );
+                        log.debug( 'Comm: ', comm, 'message: ', msg );
                         return await load_required_libraries( msg.content.data )
-                            .then( ( values ) => console.debug( values ) )
-                            .catch( console.error );
+                            .then( ( values ) => log.debug( values ) )
+                            .catch( log.error );
                     } );
 
                 } );
@@ -417,10 +419,10 @@ define( [
      *
      */
     let communicate = function ( evt, data ) {
-        console.debug( "Communication requested by event: ", evt );
+        log.debug( "Communication requested by event: ", evt );
 
         if ( _.isUndefined( comm ) ) {
-            console.warn(
+            log.warn(
                 "Communication comm has not been initialized yet. " +
                 "Is the kernel ready? Interrupting..." );
             return;
@@ -430,11 +432,11 @@ define( [
 
         comm.open( { 'event_type': evt.type } );
         let p = new Promise( ( resolve, reject ) => {
-            console.debug( "Sending event to kernel.", event, data );
+            log.debug( "Sending event to kernel.", event, data );
 
             comm.send( { event: event, event_data: data } );
             comm.on_msg( ( r ) => {
-                console.debug( "Kernel response received: ", r );
+                log.debug( "Kernel response received: ", r );
                 resolve();
             } );
 
