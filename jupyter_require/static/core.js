@@ -63,6 +63,7 @@ define( [
 
         const cell = this;
         const iopub_callback = callbacks.iopub.output;
+        const shell_callback = callbacks.shell.reply;
 
         callbacks.iopub.output = function ( msg ) {
             cell.running = true
@@ -72,6 +73,15 @@ define( [
             }
 
             return iopub_callback( msg );
+        };
+
+        callbacks.shell.reply = function ( msg ) {
+
+            if ( _.includes( [ 'execute_reply' ], msg.msg_type ) ) {
+                cell.running = false;
+            }
+
+            return shell_callback( msg );
         };
 
         return callbacks;
