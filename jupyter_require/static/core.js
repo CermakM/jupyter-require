@@ -66,9 +66,11 @@ define( [
         const shell_callback = callbacks.shell.reply;
 
         callbacks.iopub.output = function ( msg ) {
-            cell.running = true
 
-            if ( _.includes( [ 'error', 'execute_result' ], msg.msg_type ) ) {
+            if (
+                ( _.includes( [ 'error', 'execute_result' ], msg.msg_type ) ) &&
+                ( msg.parent_header.msg_id === cell.last_msg_id )
+            ) {
                 cell.running = false;
             }
 
@@ -77,7 +79,10 @@ define( [
 
         callbacks.shell.reply = function ( msg ) {
 
-            if ( _.includes( [ 'execute_reply' ], msg.msg_type ) ) {
+            if (
+                ( _.includes( [ 'execute_reply' ], msg.msg_type ) ) &&
+                ( msg.parent_header.msg_id === cell.last_msg_id )
+            ) {
                 cell.running = false;
             }
 
@@ -265,7 +270,7 @@ define( [
      * and are therefore not allowed to have any requirements.
      * Scripts executed with this method also persist through notebook
      * reloads and are automatically loaded on app initialization.
-
+    
      * This function is convenient for automatic loading and linking
      * of custom CSS and JS files.
      *
