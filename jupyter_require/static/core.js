@@ -25,18 +25,23 @@ define( [
     'underscore',
     'base/js/namespace',
     'base/js/events',
+    'notebook/js/codecell',
     'services/kernels/comm',
     './logger',
     './display'
-], function ( _, Jupyter, events, comms, Logger, display ) {
+], function ( _, Jupyter, events, codecell, comms, Logger, display ) {
     'use strict';
 
     const log = Logger()
 
+    let CodeCell = codecell.CodeCell
     let Notebook = Jupyter.Notebook;
 
     let comm_manager;
     let comm;
+
+    const get_callbacks = CodeCell.prototype.get_callbacks
+
 
     let _init_comm_manager = function ( kernel ) {
         // define in the outer scope
@@ -51,6 +56,23 @@ define( [
     } else {
         // kernel is not ready yet
         events.one( 'kernel_created.Session', ( e, d ) => _init_comm_manager( d.kernel ) );
+    }
+
+    CodeCell.prototype.get_callbacks = function () {
+        const callbacks = get_callbacks.apply( this, arguments );
+
+        const cell = this;
+        const shell_callback = callbacks.shell.reply;
+
+        callbacks.shell.reply = function ( msg ) {
+            if ( msg.msg_type === 'execute_result' || msg.msg_type === 'comm_msg' ) {
+                cell.running = false;
+            }
+
+            return shell_callback( msg );
+        };
+
+        return callbacks;
     }
 
     /**
