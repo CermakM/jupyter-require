@@ -134,6 +134,7 @@ define( [
         } );
 
         events.on( 'execute.CodeCell', ( e, d ) => d.cell.running = true );
+        events.on( 'finished_execute.CodeCell', ( e, d ) => d.cell.running = false );
 
         events.on( 'output_added.OutputArea', ( e, d ) => {
             let display_data = d.output;
@@ -147,6 +148,8 @@ define( [
                         ( r ) => log.debug( 'Output appended: ', r )
                     );
             }
+
+
         } );
 
         events.on( 'before_save.Notebook', freeze_cells );

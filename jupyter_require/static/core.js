@@ -62,14 +62,16 @@ define( [
         const callbacks = get_callbacks.apply( this, arguments );
 
         const cell = this;
-        const shell_callback = callbacks.shell.reply;
+        const iopub_callback = callbacks.iopub.output;
 
-        callbacks.shell.reply = function ( msg ) {
-            if ( msg.msg_type === 'execute_result' || msg.msg_type === 'comm_msg' ) {
+        callbacks.iopub.output = function ( msg ) {
+            cell.running = true
+
+            if ( _.includes( [ 'error', 'execute_result' ], msg.msg_type ) ) {
                 cell.running = false;
             }
 
-            return shell_callback( msg );
+            return iopub_callback( msg );
         };
 
         return callbacks;
