@@ -49,6 +49,19 @@ Jupyter = get_ipython()
 _HERE = Path(__file__).parent
 
 
+class CommError(Exception):
+    """Base class for Comm related exceptions."""
+
+    def __init__(self, *args, **kwargs):
+        msg = ". ".join([
+            *args[:1],
+            "HINT: Try reloading <F5> the window."
+        ])
+
+        args = msg, *args[1:]
+        super().__init__(*args, **kwargs)
+
+
 class RequireJS(object):
 
     __LIBS = OrderedDict()
@@ -58,6 +71,15 @@ class RequireJS(object):
 
     def __init__(self, required: dict = None, shim: dict = None):
         """Initialize RequireJS."""
+        # check if running in Jupyter notebook
+        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
+
+        if not self._is_notebook:
+            msg = "Jupyter Require found itself running outside of Jupyter."
+
+            logger.critical(msg)
+            raise EnvironmentError(msg)
+
         # comm messages
         self._msg = None
         self._msg_received = None
@@ -71,8 +93,8 @@ class RequireJS(object):
         self.__LIBS.update(required or {})
         self.__SHIM.update(shim or {})
 
-        # check if running in Jupyter notebook
-        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
+        # initialization check
+        self._is_initialized = False
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -134,13 +156,19 @@ class RequireJS(object):
 
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
+        if not require._is_initialized:
+            raise CommError("Comms haven't been initialized properly.")
+
         self.__LIBS.update(paths)
         self.__SHIM.update(shim or {})
 
         # data to be passed to require.config()
         self._msg = {'paths': self.__LIBS, 'shim': self.__SHIM}
 
-        self._config_comm.send(data=self._msg)
+        if require._config_comm is None:
+            raise CommError("Comm 'config' is not open.")
+
+        require._config_comm.send(data=self._msg)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
@@ -154,6 +182,8 @@ class RequireJS(object):
     def reload(cls, clear=False):
         """Reload and create new require object."""
         global require
+
+        logger.info("Reloading.")
 
         if clear:
             cls.__LIBS.clear()
@@ -171,6 +201,10 @@ class RequireJS(object):
 
     def _initialize_comms(self):
         """Initialize Python-JavaScript comms."""
+        logger.info("Initializing comms.")
+
+        self._is_initialized = False
+
         now = datetime.now()
 
         self._config_comm = create_comm(
@@ -191,8 +225,12 @@ class RequireJS(object):
         # initial configuration
         self.config(paths={})
 
+        self._is_initialized = True
+        logger.info("Comms have been successfully initialized.")
+
     def _store_callback(self, msg):
         """Store callback from comm."""
+        logger.debug("Storing callback for msg: %s", msg)
         self._msg_received = msg
 
 
@@ -286,7 +324,7 @@ def execute_with_requirements(script: str, required: Union[list, dict], silent=F
     }
 
     if require._safe_execution_comm is None:
-        raise TypeError("Comm 'execute' is not open.")
+        raise CommError("Comm 'execute' is not open.")
 
     # noinspection PyProtectedAccess
     return require._execution_comm.send(data)  # pylint: disable=protected-access
@@ -321,7 +359,7 @@ def safe_execute(script: str, **kwargs):
     script = JSTemplate(script).safe_substitute(**kwargs)
 
     if require._safe_execution_comm is None:
-        raise TypeError("Comm 'safe_execute' is not open.")
+        raise CommError("Comm 'execute' is not open.")
 
     # noinspection PyProtectedAccess
     return require._safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
