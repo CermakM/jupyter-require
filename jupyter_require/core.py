@@ -46,8 +46,7 @@ logger = daiquiri.getLogger()
 Jupyter = get_ipython()
 """Current InteractiveShell instance."""
 
-_HERE = Path(__file__).parent
-
+_is_notebook = Jupyter and Jupyter.has_trait('kernel')
 
 class CommError(Exception):
     """Base class for Comm related exceptions."""
@@ -64,37 +63,37 @@ class CommError(Exception):
 
 class RequireJS(object):
 
+    __instance = None
+
     __LIBS = OrderedDict()
     """Required libraries."""
     __SHIM = OrderedDict()
     """Shim for required libraries."""
 
-    def __init__(self, required: dict = None, shim: dict = None):
-        """Initialize RequireJS."""
-        # check if running in Jupyter notebook
-        self._is_notebook = Jupyter and Jupyter.has_trait('kernel')
+    # Comms strictly require to be shared between instances
+    __config_comm = None
+    __execution_comm = None
+    __safe_execution_comm = None
 
-        if not self._is_notebook:
+    __is_initialized = False
+
+    def __new__(cls, required: dict = None, shim: dict = None):
+        """Initialize RequireJS."""
+        if cls.__instance is None:
+            # initialize
+            cls.__instance = super(RequireJS, cls).__new__(cls)
+
+        if not _is_notebook:
             msg = "Jupyter Require found itself running outside of Jupyter."
 
             logger.critical(msg)
             raise EnvironmentError(msg)
 
-        # comm messages
-        self._msg = None
-        self._msg_received = None
-
-        # comms
-        self._config_comm = None
-        self._execution_comm = None
-        self._safe_execution_comm = None
-
         # update with default required libraries
-        self.__LIBS.update(required or {})
-        self.__SHIM.update(shim or {})
+        cls.__LIBS.update(required or {})
+        cls.__SHIM.update(shim or {})
 
-        # initialization check
-        self._is_initialized = False
+        return cls.__instance
 
     def __call__(self, library: str, path: str, *args, **kwargs):
         """Links JavaScript library to Jupyter Notebook.
@@ -113,14 +112,51 @@ class RequireJS(object):
         self.config({library: path}, shim=kwargs.pop('shim', {}))
 
     @property
+    def is_initialized(self) -> bool:
+        """Return whether RequireJS has been initialized."""
+        return RequireJS.__is_initialized
+
+    @is_initialized.setter
+    def is_initialized(self, state: bool):
+        """Set whether requireJS has been initialized."""
+        if state and any([
+            RequireJS.__config_comm is None,
+            RequireJS.__execution_comm is None,
+            RequireJS.__safe_execution_comm is None
+        ]):
+            raise ValueError(
+                "Some comms have not been initialized yet."
+                "Can't set to True."
+            )
+
+        if not state and not any([
+            RequireJS.__config_comm is None,
+            RequireJS.__execution_comm is None,
+            RequireJS.__safe_execution_comm is None
+        ]):
+            raise ValueError("All comms are initialized. Can't set to False.")
+
+        RequireJS.__is_initialized = state
+
+    @property
     def libs(self) -> dict:
         """Get custom loaded libraries."""
-        return dict(self.__LIBS)
+        return dict(RequireJS.__LIBS)
 
     @property
     def shim(self) -> dict:
         """Get shim defined in requireJS config."""
-        return dict(self.__SHIM)
+        return dict(RequireJS.__SHIM)
+
+    @property
+    def execution_comm(self) -> Comm:
+        """Return execution Comm."""
+        return RequireJS.__execution_comm
+
+    @property
+    def safe_execution_comm(self) -> Comm:
+        """Return execution Comm."""
+        return RequireJS.__safe_execution_comm
 
     def display_context(self):
         """Print defined libraries."""
@@ -156,82 +192,92 @@ class RequireJS(object):
 
         Please note that <path> does __NOT__ contain `.js` suffix.
         """
-        if not require._is_initialized:
+        logger.debug("Configuration requested: %s", {
+            "paths": paths,
+            "shim": shim
+        })
+
+        if not self.is_initialized:
             raise CommError("Comms haven't been initialized properly.")
 
-        self.__LIBS.update(paths)
-        self.__SHIM.update(shim or {})
+        RequireJS.__LIBS.update(paths)
+        RequireJS.__SHIM.update(shim or {})
 
         # data to be passed to require.config()
-        self._msg = {'paths': self.__LIBS, 'shim': self.__SHIM}
+        data = {'paths': RequireJS.__LIBS, 'shim': RequireJS.__SHIM}
 
-        if require._config_comm is None:
+        if RequireJS.__config_comm is None:
             raise CommError("Comm 'config' is not open.")
 
-        require._config_comm.send(data=self._msg)
+        RequireJS.__config_comm.send(data=data)
 
     def pop(self, lib: str):
         """Remove JavaScript library from requirements.
 
         :param lib: key as passed to `config()`
         """
-        self.__LIBS.pop(lib)
-        self.__SHIM.pop(lib)
+        RequireJS.__LIBS.pop(lib)
+        RequireJS.__SHIM.pop(lib)
 
     @classmethod
     def reload(cls, clear=False):
         """Reload and create new require object."""
-        global require
-
         logger.info("Reloading.")
+
+        libs = cls.__LIBS if not clear else []
+        shim = cls.__SHIM if not clear else []
 
         if clear:
             cls.__LIBS.clear()
             cls.__SHIM.clear()
 
-        libs = require.libs if not clear else []
-        shim = require.shim if not clear else []
+        cls.__config_comm = None
+        cls.__execution_comm = None
+        cls.__safe_execution_comm = None
 
-        require = cls(required=libs, shim=shim)
+        cls.__is_initialized = False
 
-        if require._is_notebook:
-            require._initialize_comms()
+        self = cls(required=libs, shim=shim)
 
-        require.__doc__ = RequireJS.__call__.__doc__
+        if _is_notebook:
+            self._initialize_comms()
 
     def _initialize_comms(self):
         """Initialize Python-JavaScript comms."""
         logger.info("Initializing comms.")
 
-        self._is_initialized = False
-
         now = datetime.now()
 
-        self._config_comm = create_comm(
+        RequireJS.__config_comm = create_comm(
             target='config',
             comm_id=f'config.JupyterRequire#{datetime.timestamp(now)}',
-            callback=self._store_callback)
+            callback=RequireJS.log_callback)
 
-        self._execution_comm = create_comm(
+        RequireJS.__execution_comm = create_comm(
             target='execute',
             comm_id=f'execute.JupyterRequire#{datetime.timestamp(now)}',
-            callback=self._store_callback)
+            callback=RequireJS.log_callback)
 
-        self._safe_execution_comm = create_comm(
+        RequireJS.__safe_execution_comm = create_comm(
             target='safe_execute',
             comm_id=f'safe_execute.JupyterRequire#{datetime.timestamp(now)}',
-            callback=self._store_callback)
+            callback=RequireJS.log_callback)
+
+        self.is_initialized = True
 
         # initial configuration
         self.config(paths={})
 
-        self._is_initialized = True
         logger.info("Comms have been successfully initialized.")
 
-    def _store_callback(self, msg):
+    @classmethod
+    def log_callback(cls, msg):
         """Store callback from comm."""
-        logger.debug("Storing callback for msg: %s", msg)
-        self._msg_received = msg
+        logger.debug("Callback received: %s", msg)
+
+
+require = RequireJS()
+require.__doc__ = RequireJS.__call__.__doc__
 
 
 class JSTemplate(string.Template):
@@ -301,9 +347,11 @@ def execute_with_requirements(script: str, required: Union[list, dict], silent=F
 
     :param kwargs: optional keyword arguments for template substitution
     """
+    requirejs = RequireJS()
+
     if not configured:
         if isinstance(required, dict):
-            require.config(required, **kwargs)
+            requirejs.config(required, **kwargs)
         else:
             raise TypeError(
                 f"Attribute `required` expected to be dict, got {type(required)}.")
@@ -323,11 +371,11 @@ def execute_with_requirements(script: str, required: Union[list, dict], silent=F
         'parameters': params,
     }
 
-    if require._safe_execution_comm is None:
+    if requirejs.safe_execution_comm is None:
         raise CommError("Comm 'execute' is not open.")
 
     # noinspection PyProtectedAccess
-    return require._execution_comm.send(data)  # pylint: disable=protected-access
+    return requirejs.execution_comm.send(data)  # pylint: disable=protected-access
 
 
 def execute(script: str, **kwargs):
@@ -335,9 +383,12 @@ def execute(script: str, **kwargs):
 
     This function implicitly loads libraries defined in requireJS config.
     """
+    requirejs = RequireJS()
+
     required = []
+
     try:
-        required = list(require.libs.keys())
+        required = list(requirejs.libs.keys())
     except NameError:  # require has not been defined yet, allowed
         pass
 
@@ -355,18 +406,16 @@ def safe_execute(script: str, **kwargs):
     This function is convenient for automatic loading and linking
     of custom CSS and JS files.
     """
+    requirejs = RequireJS()
+
     script = "{ " + script + " }"  # provide local scope
     script = JSTemplate(script).safe_substitute(**kwargs)
 
-    if require._safe_execution_comm is None:
+    if requirejs.safe_execution_comm is None:
         raise CommError("Comm 'execute' is not open.")
 
     # noinspection PyProtectedAccess
-    return require._safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
-
-
-require = RequireJS()
-require.__doc__ = RequireJS.__call__.__doc__
+    return requirejs.safe_execution_comm.send(data={'script': script})  # pylint: disable=protected-access
 
 
 def communicate(comm, open_msg):
@@ -382,19 +431,16 @@ def communicate(comm, open_msg):
             "Message received: %r", msg)
 
         data = msg['content']['data']
-
         event = data.get('event', None)
-        event_data = data.get('event_data', {})
 
         logger.debug(
             "Requested message handler.\n\tData: %r\n\tEvent: %r", data, event)
 
         response = {'resolved': True, 'value': None, 'success': False}
         try:
-            event_type, namespace = event['type'], event['namespace']
+            _, namespace = event['type'], event['namespace']
 
             if namespace == 'JupyterRequire':
-                # response['value'] = ...  # TODO
                 response['success'] = True
 
             logger.debug("Success.")
@@ -405,6 +451,6 @@ def communicate(comm, open_msg):
             response['value'] = err
 
         finally:
-            require._store_callback(msg)
+            RequireJS.log_callback(msg)
 
         comm.send(response)

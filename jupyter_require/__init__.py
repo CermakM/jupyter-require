@@ -41,11 +41,9 @@ from .core import communicate
 from .core import execute_with_requirements
 from .core import execute
 from .core import safe_execute
-
 from .core import require
 
 from IPython import get_ipython
-
 
 daiquiri.setup(
     level=logging.DEBUG,
