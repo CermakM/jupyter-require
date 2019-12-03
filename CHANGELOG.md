@@ -2,6 +2,15 @@ Changelog
 =========
 
 
+HEAD
+----
+
+New
+~~~
+- Added .gitchangelog.rc. [Marek Cermak]
+- Reload extension when the kernel is reloaded. [Marek Cermak]
+
+
 v0.5.0 (2019-11-27)
 -------------------
 
@@ -13,12 +22,6 @@ Changes
 
   modified:   jupyter_require/__init__.py
   modified:   jupyter_require/core.py
-
-References
-~~~~~~~~~~
-
-- [fix] https://github.com/CermakM/jupyter-datatables/issues/30
-- https://github.com/CermakM/jupyter-datatables/issues/26
 
 
 v0.4.3 (2019-11-23)
