@@ -2,11 +2,12 @@ Changelog
 =========
 
 
-HEAD
-----
+0.6.0
+-----
 
 New
 ~~~
+- Added Makefile. [Marek Cermak]
 - Added .gitchangelog.rc. [Marek Cermak]
 - Reload extension when the kernel is reloaded. [Marek Cermak]
 
