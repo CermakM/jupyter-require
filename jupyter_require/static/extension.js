@@ -76,6 +76,7 @@ define( function ( require ) {
                             } )
                     }, params.init_delay );
                 } else {
+
                     events.one( 'notebook_loaded.Notebook', () => {
                         // autoload
                         load_extension()
@@ -85,6 +86,17 @@ define( function ( require ) {
                             } )
                     } );
                 }
+
+                // When the kernel is restarted
+                events.on( 'kernel_ready.Kernel', () => {
+                    // autoload
+                    load_extension()
+                        .then( () => kernel.execute( "%reload_ext " + __extension__, {}, opts ) )
+                        .then( () => {
+                            events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
+                        } )
+                } );
+
             } );
         } );
     }
