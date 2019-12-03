@@ -237,20 +237,22 @@ define( [
      * Load extension
      *
      */
-    return function load_extension() {
+    return function load_extension( { reload = false } = {} ) {
         return new Promise( ( resolve ) => {
-
-            register_events();
 
             const config = core.get_notebook_config();
 
-            const fas_url = "https://use.fontawesome.com/releases/v5.8.1/css/all.css";
-            link_css( fas_url, {
-                integrity: "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
-                crossOrigin: "anonymous"
-            } );
+            if ( !reload ) {
+                register_events();
 
-            register_actions();
+                const fas_url = "https://use.fontawesome.com/releases/v5.8.1/css/all.css";
+                link_css( fas_url, {
+                    integrity: "sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf",
+                    crossOrigin: "anonymous"
+                } );
+
+                register_actions();
+            }
 
             core.register_targets()
                 .then( log.debug );
