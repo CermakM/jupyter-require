@@ -90,7 +90,7 @@ define( function ( require ) {
                 // When the kernel is restarted
                 events.on( 'kernel_ready.Kernel', () => {
                     // autoload
-                    load_extension()
+                    load_extension( { reload: true } )
                         .then( () => kernel.execute( "%reload_ext " + __extension__, {}, opts ) )
                         .then( () => {
                             events.trigger( 'extension_loaded.JupyterRequire', { timestamp: _.now() } );
