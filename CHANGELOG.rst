@@ -2,8 +2,29 @@ Changelog
 =========
 
 
-0.6.0
+0.6.1
 -----
+
+New
+~~~
+- Include CHANGELOG in the package distribution. [Marek Cermak]
+
+Changes
+~~~~~~~
+- Use .rst for CHANGELOG. [Marek Cermak]
+
+Fix
+~~~
+- Fixed multiple action buttons after reload. [Marek Cermak]
+
+  Signed-off-by: Marek Cermak <macermak@redhat.com>
+
+  modified:   jupyter_require/static/extension.js
+  modified:   jupyter_require/static/loader.js
+
+
+v0.6.0 (2019-12-03)
+-------------------
 
 New
 ~~~
