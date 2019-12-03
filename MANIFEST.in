@@ -3,6 +3,7 @@ recursive-include jupyter_require/static *.*
 include setupbase.py
 
 include LICENSE
+include CHANGELOG.rst
 include README.rst
 include requirements.txt
 
