@@ -11,21 +11,21 @@ About
 
 The `jupyter-require`_ library is intended to be used in `Jupyter`_ notebooks.
 
-Jupyter-require allows us to execute and manage custom `JavaScript`_ and `CSS`_ files and even create and load your styles and scripts directly from `Jupyter`_ notebook.
+Jupyter-require allows to execute and manage custom `JavaScript`_ and `CSS`_ files and even create and load your own styles and scripts directly from `Jupyter`_ notebook.
 
-Jupyter-require provides a unique opportunity to customize Jupyter notebooks and enables users to handcraft their JavaScript-augmented workflows while keeping in mind synchronicity demands and security implications of such approaches.
+Jupyter-require provides a unique opportunity to customize Jupyter notebooks and enables users to handcraft their own JavaScript-augmented workflows while keeping in mind synchronicity demands and security implications of such approaches.
 
 |
 
 What is this for?
 =================
 
-Let's demonstrate the usage of an example. Note that the usage is limited only by your imagination, this is just a demonstration of a single-use case.
+Let's demonstrate the usage on an example. Note that the usage is limited only by your imagination, this is just a demonstration of a single use case.
 
 |
 
 If you are into data visualization like me, you've most likely already heard of `d3`_.js JavaScript ecosystem.
-It's an incredibly powerful tool that can be used to create advanced interactive visualizations.
+It's an incredibly powerful tool which can be used to create advanced interactive visualizations.
 
 However, it is not very comfortable to use in Jupyter notebooks let alone integrate with Python.
 
@@ -158,7 +158,7 @@ If you're not a fan of magic commands, you can make use of equivalent API calls.
 Executing custom script
 -----------------------
 
-Now we can make use of the bidirectional communication between Python and JS
+Now we can actually make use of the bidirectional communication between Python and JS
 
 Let's say we have the following `d3`_ script:
 
@@ -169,7 +169,7 @@ Let's say we have the following `d3`_ script:
 
     /**
      * @module
-     * @description  Print colored circles into the cell output
+     * @description  Print coloured circles into the cell output
      * @file  d3-simple-example.js
      */
 
@@ -223,7 +223,7 @@ Synchronicity
 JavaScript execution is by default asynchronous. All the more in Jupyter notebooks.
 Executing custom JavaScript script will happen asynchronously and the rest of the notebook won't wait for the execution to complete.
 
-This is very often not the desired behavior, since we might to work with the results of the execution in the next cell.
+This is very often not the desired behaviour, since we might to work with the results of the execution in the next cell.
 
 Jupyter-require solves this issue by converting every executed script into `Promise <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise>`__ and awaiting it while pausing the execution of Python kernel.
 
@@ -247,7 +247,7 @@ Also, if you don't want to share the script that produced the output, but you wa
 
 We try to combat that issue step by step, our approach is not optimal either, but it does yield some improvements and we believe that over time, it will get even better. When executing the script *with* jupyter-require ``execute_with_requirements`` function, it is not the script that is embedded, it is the **Function object** itself which the cells carry with. This allows the script to be re-executed when we copy/paste a cell or stored in a clipboard when cutting the cell.
 
-Also, we do not evaluate the script in window context using the ``eval`` function, as Jupyter by default does. Instead, at the current development state, we **wrap it** in its **Function scope** and set its ``this`` and ``element`` context manually.
+Also, we do not evaluate the script in window context using the ``eval`` function, as Jupyter by default does. Instead, at the current development state, we **wrap it** in its own **Function scope** and set its ``this`` and ``element`` context manually.
 
 Aight, still not a word about *finalization*, right? What finalization means in this context, is **discarding** the JavaScript code which produced the output, cleaning the metadata and **saving the output** displayed in the cell output area into a static state.
 Going back to the `d3`_ example, finalizing the cells would make the plot that we produced persistent and JSON serializable. The output would then be visible in tools like `nbviewer`_ or `GitHub`_ ``ipynb`` preview.
@@ -257,7 +257,7 @@ Going back to the `d3`_ example, finalizing the cells would make the plot that w
 
 |
 
-We are thinking about the ways we could sandbox the execution and the output even more, but bear in mind that this project is very young, so let's put one foot in front of the other.
+We are thinking about the ways we could sandbox the execution and the output even more, but bare in mind that this project is very young, so let's put one foot in front of the other.
 
 To finalize your outputs, use the ``Save and Finalize`` action button which should be present on the right of the regular ``Save and Checkpoint`` button. The finalization also happens automatically when you *properly* close the notebook. We cannot handle SIGTERMs at the moment, so be aware that in that case the scripts will be discarded and the output lost.
 
@@ -267,8 +267,8 @@ To finalize your outputs, use the ``Save and Finalize`` action button which shou
 
     ⚠️ The notion of safe scripts is something that has been added pretty recently and is under heavy observation.
 
-By the word *safe*, we don't refer to an execution that reduces security threats, no, nothing like that. It is *YOU* who guarantee that the script *is* safe and can be treated as such.
-The mechanism which we treat *safe scripts* by is very similar to the one described above, with one important change: safe scripts are similar to the default Jupyter notebook behavior in a sense that they are also **executed on the notebook reload** and are also **stored in the resulting `*.ipynb` notebook file**.
+By the word *safe* we don't refer to an execution which reduces security threats, no, nothing like that. It is *YOU* who guarantee that the script *is* safe and can be treated as such.
+The mechanism which we treat *safe scripts* by is very similar to the one described above, with one important change: safe scripts are similar to the default Jupyter notebook behaviour in a sense that they are also **executed on the notebook reload** and are also **stored in the resulting `*.ipynb` notebook file**.
 
 Hence you can enjoy the benefits of a sandbox(ish) synchronous execution while still having the scripts stored in the output. The one **limitation** is that they do not allow to specify requirements as the *execute_with_requirements* function does by its ``required`` parameter. This is because those scripts can be executed *before* extensions are loaded and we can not guarantee (at least we don't know how right now) that the functionality of jupyter-require will be present at that time.
 
