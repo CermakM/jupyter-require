@@ -77,7 +77,7 @@ To install the nbextension itself and enable it, we have supplied a helper funct
     utils.load_nbextension('jupyter-require', enable=True)
 
 
-All of that above can be done from command line, so if you're used to installing nbextensions the regular way, feel free to do so. In fact, you are **recommended** to, this approach is just for lazy people like myself.
+All of that above can be done from the command line, so if you're used to installing nbextensions the regular way, feel free to do so. In fact, you are **recommended** to, this approach is just for lazy people like myself.
 
     NOTE: You may need to reload the page (just hit F5) after these steps for the jupyter-require nbextension to initialize properly.
 
@@ -232,20 +232,20 @@ Jupyter-require solves this issue by converting every executed script into `Prom
 Execution & Security -- *safe scripts* and *finalization*
 =========================================================
 
-In Jupyter notebooks, it might be sometimes unfortunate how the JavaScript is stored (and treated) in general in the notebook environment.
+In Jupyter notebooks, it might be sometimes unfortunate how JavaScript is stored (and treated) in general in the notebook environment.
 ``jupyter-require`` introduces the notion of *safe scripts* and *finalization*. Let's look at the latter first.
 
 **Finalization**
 
-When a user executes a script via native Jupyter API, that is typically something like ``display(Javascript("""..."""))``, what happens behind the scenes is actually quite complicated. The one important thing to now, however, is that the *whole* script is embedded into the cell output and the resulting `*.ipynb` file.
-Then, **every time** a cell is copied or re-created (i.e., on notebook reload), the script is **executed**. Since this execution is not sandboxed. In fact, it is executed in **window context** using ``eval`` function.
+When a user executes a script via native Jupyter API, that is typically something like ``display(Javascript("""..."""))``, what happens behind the scenes is quite complicated. The one important thing to now, however, is that the *whole* script is embedded into the cell output and the resulting `*.ipynb` file.
+Then, **every time** a cell is copied or re-created (i.e., on notebook reload), the script is **executed**. Since this execution is not sandboxed. It is executed in the **window context** using the ``eval`` function.
 
     See: The section `'Do not ever use eval!' <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#Do_not_ever_use_eval!>`_ from the official `MDN web docs`_).
 
 This can potentially be a security threat!
 Also, if you don't want to share the script that produced the output, but you want the output to be present, this does not happen either.
 
-We try to combat that issue step by step, our approach is not optimal either, but it does yield some improvements and we believe that over time, it will get even better. When executing script *with* jupyter-require ``execute_with_requirements`` function, it is not the script which is embedded, it is the **Function object** itself which the cells carry with. This allows the script to be re-executed when we copy/paste a cell or stored in a clipboard when cutting the cell.
+We try to combat that issue step by step, our approach is not optimal either, but it does yield some improvements and we believe that over time, it will get even better. When executing the script *with* jupyter-require ``execute_with_requirements`` function, it is not the script that is embedded, it is the **Function object** itself which the cells carry with. This allows the script to be re-executed when we copy/paste a cell or stored in a clipboard when cutting the cell.
 
 Also, we do not evaluate the script in window context using the ``eval`` function, as Jupyter by default does. Instead, at the current development state, we **wrap it** in its own **Function scope** and set its ``this`` and ``element`` context manually.
 
@@ -265,14 +265,14 @@ To finalize your outputs, use the ``Save and Finalize`` action button which shou
 
 **Safe scripts**
 
-    ⚠️ The notion of safe scripts is something which has been added pretty recently and is under heavy observation.
+    ⚠️ The notion of safe scripts is something that has been added pretty recently and is under heavy observation.
 
 By the word *safe* we don't refer to an execution which reduces security threats, no, nothing like that. It is *YOU* who guarantee that the script *is* safe and can be treated as such.
 The mechanism which we treat *safe scripts* by is very similar to the one described above, with one important change: safe scripts are similar to the default Jupyter notebook behaviour in a sense that they are also **executed on the notebook reload** and are also **stored in the resulting `*.ipynb` notebook file**.
 
-Hence you can enjoy the benefits of a sandbox(ish) synchronous execution while still having the scripts stored in the output. The one **limitation** is that they do not allow to specify requirements as the ``execute_with_requirements`` function does by its ``required`` parameter. This is because those scripts can be executed *before* extensions are actually loaded and we can not guarantee (at least we don't know how right now) that the functionality of jupyter-require will be present at that time.
+Hence you can enjoy the benefits of a sandbox(ish) synchronous execution while still having the scripts stored in the output. The one **limitation** is that they do not allow to specify requirements as the *execute_with_requirements* function does by its ``required`` parameter. This is because those scripts can be executed *before* extensions are loaded and we can not guarantee (at least we don't know how right now) that the functionality of jupyter-require will be present at that time.
 
-To treat your script as *safe script*, execute it with ``safe_execute`` function.
+To treat your script as a *safe script*, execute it with ``safe_execute`` function.
 
 
 |
